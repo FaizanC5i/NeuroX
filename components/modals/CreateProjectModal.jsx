@@ -16,7 +16,6 @@ export function CreateProjectModal({
   const [startDate, setStartDate] = useState("");
   const [targetDate, setTargetDate] = useState("");
   const [sharedWith, setSharedWith] = useState("");
-  const [showSuggestions, setShowSuggestions] = useState(false);
   const [status, setStatus] = useState("In Progress");
 
   const [personas, setPersonas] = useState([
@@ -25,38 +24,23 @@ export function CreateProjectModal({
 
   useEffect(() => {
     if (editingProject) {
-      setProjectName(
-        editingProject.title || editingProject.projectName || ""
-      );
-      setClientName(
-        editingProject.company || editingProject.client || ""
-      );
-      setDescription(
-        editingProject.description ||
-          editingProject.projectDescription ||
-          ""
-      );
+      setProjectName(editingProject.title || "");
+      setClientName(editingProject.company || "");
+      setDescription(editingProject.description || "");
 
       if (editingProject.startDate) {
         const date = new Date(editingProject.startDate);
         setStartDate(date.toISOString().split("T")[0]);
       }
 
-      if (
-        editingProject.targetDate ||
-        editingProject.targetCompletionDate
-      ) {
-        const date = new Date(
-          editingProject.targetDate ||
-            editingProject.targetCompletionDate
-        );
+      if (editingProject.targetDate) {
+        const date = new Date(editingProject.targetDate);
         setTargetDate(date.toISOString().split("T")[0]);
       }
 
       setSharedWith(editingProject.sharedWith || "");
       setStatus(editingProject.status || "In Progress");
 
-      // ✅ IMPORTANT: load personas if editing
       if (editingProject.personas) {
         setPersonas(editingProject.personas);
       }
@@ -73,16 +57,8 @@ export function CreateProjectModal({
     setTargetDate("");
     setSharedWith("");
     setStatus("In Progress");
-
-    // ✅ reset personas also
     setPersonas([{ name: "", description: "" }]);
   };
-
-  const emailSuggestions = [
-    "john.doe@example.com",
-    "jane.smith@lenovo.com",
-    "mike.johnson@dell.com",
-  ];
 
   const addPersona = () => {
     setPersonas([...personas, { name: "", description: "" }]);
@@ -95,8 +71,7 @@ export function CreateProjectModal({
   };
 
   const removePersona = (index) => {
-    const updated = personas.filter((_, i) => i !== index);
-    setPersonas(updated);
+    setPersonas(personas.filter((_, i) => i !== index));
   };
 
   const handleSubmit = () => {
@@ -105,7 +80,6 @@ export function CreateProjectModal({
       return;
     }
 
-    // ✅ Remove empty personas
     const filteredPersonas = personas.filter(
       (p) => p.name.trim() !== ""
     );
@@ -123,15 +97,12 @@ export function CreateProjectModal({
       targetDate,
       sharedWith,
       status,
-      personas: filteredPersonas, // ✅ cleaned data
+      personas: filteredPersonas,
     };
 
     if (editingProject) {
-      projectData.projectId =
-        editingProject.projectId || editingProject.id;
+      projectData.projectId = editingProject.projectId;
     }
-
-    console.log("SENDING PERSONAS:", filteredPersonas); // ✅ debug
 
     onCreateProject(projectData);
     resetForm();
@@ -148,7 +119,7 @@ export function CreateProjectModal({
       />
 
       <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-        <div className="bg-white rounded-lg shadow-xl w-full max-w-[580px] max-h-[90vh] overflow-y-auto relative">
+        <div className="bg-white rounded-xl shadow-lg w-full max-w-[640px] max-h-[90vh] overflow-y-auto relative">
 
           <button
             onClick={onClose}
@@ -163,59 +134,66 @@ export function CreateProjectModal({
             </h2>
 
             {/* Project Name */}
-            <input
-              type="text"
-              placeholder="Project Name *"
-              value={projectName}
-              onChange={(e) => setProjectName(e.target.value)}
-              className="w-full mb-3 px-3 py-2 border"
-            />
+            <div className="mb-4">
+              <label className="text-sm font-medium text-gray-700 mb-2 block">Project Name *</label>
+              <input
+                type="text"
+                placeholder="Enter project name"
+                value={projectName}
+                onChange={(e) => setProjectName(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-indigo-400"
+              />
+            </div>
 
             {/* Client Name */}
-            <input
-              type="text"
-              placeholder="Client Name *"
-              value={clientName}
-              onChange={(e) => setClientName(e.target.value)}
-              className="w-full mb-3 px-3 py-2 border"
-            />
+            <div className="mb-4">
+              <label className="text-sm font-medium text-gray-700 mb-2 block">Client Name *</label>
+              <input
+                type="text"
+                placeholder="Enter client name"
+                value={clientName}
+                onChange={(e) => setClientName(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-indigo-400"
+              />
+            </div>
 
             {/* Description */}
-            <textarea
-              placeholder="Description"
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              className="w-full mb-3 px-3 py-2 border"
-            />
-
+            <div className="mb-4">
+              <label className="text-sm font-medium text-gray-700 mb-2 block">Description</label>
+              <textarea
+                placeholder="Description ..."
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-indigo-400"
+              />
+            </div>
+            
             {/* Personas */}
             <div className="mb-4">
-              <label className="font-semibold">User Personas *</label>
+              <label className="text-sm font-medium text-gray-700 mb-2 block">User Personas *</label>
 
               {personas.map((p, index) => (
-                <div key={index} className="border p-3 mb-2 rounded">
-                  <input
-                    type="text"
-                    placeholder="Persona Name"
-                    value={p.name}
-                    onChange={(e) =>
-                      updatePersona(index, "name", e.target.value)
-                    }
-                    className="w-full mb-2 px-2 py-1 border"
-                  />
-
-                  <textarea
-                    placeholder="Persona Description"
-                    value={p.description}
-                    onChange={(e) =>
-                      updatePersona(
-                        index,
-                        "description",
-                        e.target.value
-                      )
-                    }
-                    className="w-full px-2 py-1 border"
-                  />
+                <div key={index} className="mb-4">
+                  <div className="flex gap-3">
+                    <textarea
+                      placeholder="Persona Name"
+                      value={p.name}
+                      onChange={(e) =>
+                        updatePersona(index, "name", e.target.value)
+                      }
+                      rows={1}
+                      className="w-1/3 px-3 py-2 border border-gray-300 rounded-md text-sm resize-none overflow-hidden"
+                    />
+                    <textarea
+                      placeholder="Persona Description"
+                      value={p.description}
+                      onChange={(e) =>
+                        updatePersona(index, "description", e.target.value)
+                      }
+                      className="w-2/3 px-3 py-2 border border-gray-300 rounded-md text-sm resize-none"
+                      rows={3}
+                    />
+                  </div>
 
                   {personas.length > 1 && (
                     <button
@@ -237,31 +215,43 @@ export function CreateProjectModal({
             </div>
 
             {/* Dates */}
-            <input
-              type="date"
-              value={startDate}
-              onChange={(e) => setStartDate(e.target.value)}
-              className="w-full mb-2 px-3 py-2 border"
-            />
+            <div className="flex gap-4 mb-4 mt-4">
+              <div className="flex-1">
+                <label className="text-sm font-medium text-gray-700 mb-2 block">Start Date *</label>
+                <input
+                  type="date"
+                  value={startDate}
+                  onChange={(e) => setStartDate(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm text-gray-400 focus:ring-2 focus:ring-indigo-400"
+                />
+              </div>
+              <div className="flex-1">
+                <label className="text-sm font-medium text-gray-700 mb-2 block">Target Completion Date *</label>
+                <input
+                  type="date"
+                  value={targetDate}
+                  onChange={(e) => setTargetDate(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm text-gray-400 focus:ring-2 focus:ring-indigo-400"
+                />
+              </div>
+            </div>
 
-            <input
-              type="date"
-              value={targetDate}
-              onChange={(e) => setTargetDate(e.target.value)}
-              className="w-full mb-3 px-3 py-2 border"
-            />
-
-            {/* Submit */}
-            <div className="flex justify-end gap-2">
-              <button onClick={onClose}>Cancel</button>
-
+            {/* Buttons */}
+            <div className="flex justify-end gap-3 mt-4">
+              <button
+                onClick={onClose}
+                className="px-5 py-2 border border-gray-300 rounded-md text-sm text-gray-700 hover:bg-gray-100"
+              >
+                Cancel
+              </button>
               <button
                 onClick={handleSubmit}
-                className="bg-indigo-500 text-white px-4 py-2 rounded"
+                className="px-5 py-2 bg-indigo-600 text-white rounded-md text-sm hover:bg-indigo-700"
               >
                 {editingProject ? "Update" : "Create"}
               </button>
             </div>
+
           </div>
         </div>
       </div>

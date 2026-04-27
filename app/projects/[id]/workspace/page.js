@@ -23,15 +23,12 @@ export default function EmpathyMapPage() {
     education: "",
   });
 
-  // 🔥 Load Personas
   const fetchPersonas = async () => {
     try {
       const res = await fetch(`/api/personas?projectId=${projectId}`);
       const text = await res.text();
       if (!text) return;
-
       const data = JSON.parse(text);
-
       if (data.success) {
         setPersonas(data.data);
         if (data.data.length > 0) {
@@ -43,15 +40,12 @@ export default function EmpathyMapPage() {
     }
   };
 
-  // 🔥 Load Interviewees
   const fetchInterviewees = async (personaId) => {
     try {
       const res = await fetch(`/api/interviewees?personaId=${personaId}`);
       const text = await res.text();
       if (!text) return;
-
       const data = JSON.parse(text);
-
       if (data.success) {
         setInterviewees(data.data);
       }
@@ -67,17 +61,14 @@ export default function EmpathyMapPage() {
   useEffect(() => {
     if (activePersona) {
       fetchInterviewees(activePersona.persona_id);
-      setSelectedInterviewee(null); // ✅ reset on persona change
+      setSelectedInterviewee(null);
     }
   }, [activePersona]);
 
-  // 🔥 Add Interviewee
   const handleAddInterviewee = async () => {
     const res = await fetch("/api/interviewees", {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         personaId: activePersona.persona_id,
         ...form,
@@ -104,79 +95,129 @@ export default function EmpathyMapPage() {
   return (
     <div className="p-8 bg-white min-h-screen">
 
-      {/* 🔥 Persona Tabs */}
-<div className="mb-4 border-b border-gray-200 pb-2">
-  <div className="flex gap-2">
-    {personas.map((p) => (
-      <button
-        key={p.persona_id}
-        onClick={() => setActivePersona(p)}
-        className={`px-4 py-2 rounded-t-md text-sm font-medium transition ${
-          activePersona?.persona_id === p.persona_id
-            ? "bg-indigo-500 text-white shadow"
-            : "bg-gray-100 hover:bg-gray-200"
-        }`}
-      >
-        {p.persona_name}
-      </button>
-    ))}
-  </div>
+      {/* Persona Tabs */}
+      <div className="mb-4 border-b border-gray-200 pb-2">
+        <div className="flex gap-2">
+          {personas.map((p) => (
+            <button
+              key={p.persona_id}
+              onClick={() => setActivePersona(p)}
+              className={`px-4 py-2 rounded-t-md text-sm font-medium transition ${
+                activePersona?.persona_id === p.persona_id
+                  ? "bg-indigo-500 text-white shadow"
+                  : "bg-gray-100 hover:bg-gray-200"
+              }`}
+            >
+              {p.persona_name}
+            </button>
+          ))}
+        </div>
 
-  {/* ✅ Persona Description (NEW FIX) */}
-  {activePersona && (
-    <div className="mt-2 px-2 text-sm text-gray-600">
-      {activePersona.persona_description}
-    </div>
-  )}
-</div>
+        {activePersona && (
+          <div className="mt-2 px-4 py-1.5 text-sm text-gray-500 border border-gray-300 rounded-full bg-gray-50 inline-block ml-0">
+            {activePersona.persona_description}
+          </div>
+        )}
+      </div>
 
-      {/* 🔥 Interviewee Tabs */}
-     <div className="flex items-center gap-2 mb-6 overflow-x-auto">
+      {/* Interviewee Tabs + Plus Button */}
+      <div className="flex items-center gap-2 mb-4 overflow-x-auto flex-wrap">
+        {interviewees.map((i) => (
+          <button
+            key={i.interviewee_id}
+            onClick={() => {
+              if (selectedInterviewee?.interviewee_id === i.interviewee_id) {
+                setSelectedInterviewee(null);
+              } else {
+                setSelectedInterviewee(i);
+              }
+            }}
+            className={`px-4 py-2 rounded-t-md whitespace-nowrap text-sm font-medium transition ${
+              selectedInterviewee?.interviewee_id === i.interviewee_id
+                ? "bg-indigo-500 text-white shadow"
+                : "bg-gray-100 hover:bg-gray-200"
+            }`}
+          >
+            {i.name}
+          </button>
+        ))}
 
-  {interviewees.map((i) => (
-    <button
-      key={i.interviewee_id}
-      onClick={() => {
-        if (selectedInterviewee?.interviewee_id === i.interviewee_id) {
-          setSelectedInterviewee(null);
-        } else {
-          setSelectedInterviewee(i);
-        }
-      }}
-      className={`px-4 py-2 rounded-t-md whitespace-nowrap text-sm font-medium transition ${
-        selectedInterviewee?.interviewee_id === i.interviewee_id
-          ? "bg-indigo-500 text-white shadow"
-          : "bg-gray-100 hover:bg-gray-200"
-      }`}
-    >
-      {i.name}
-    </button>
-  ))}
+        <button
+          onClick={() => {
+            setShowForm(!showForm);
+            setSelectedInterviewee(null);
+          }}
+          className="ml-2 w-9 h-9 flex items-center justify-center rounded-full bg-gray-100 hover:bg-gray-200 text-xl font-semibold shadow-sm transition"
+        >
+          +
+        </button>
+      </div>
 
-  {/* ✅ Google-style Add Button */}
-  <button
-    onClick={() => setShowForm(true)}
-    className="ml-2 w-9 h-9 flex items-center justify-center rounded-full bg-gray-100 hover:bg-gray-200 text-xl font-semibold shadow-sm transition"
-  >
-    +
-  </button>
-</div>
+      {/* ✅ INLINE FORM - replaces modal, appears below + button */}
+      {showForm && (
+        <div className="mb-6 p-5 border border-gray-200 rounded-lg bg-gray-50 shadow-sm">
+          <h3 className="font-semibold text-base mb-4 text-gray-800">Add Interviewee</h3>
 
-      {/* 🔥 Interviewee Details */}
+          <div className="grid grid-cols-2 gap-3">
+            {[
+              { key: "name", label: "Name" },
+              { key: "gender", label: "Gender" },
+              { key: "age", label: "Age" },
+              { key: "location", label: "Location" },
+              { key: "relationship_status", label: "Relationship Status" },
+              { key: "title", label: "Title" },
+              { key: "education", label: "Education" },
+            ].map(({ key, label }) => (
+              <div key={key} className="flex flex-col gap-1">
+                <label className="text-xs font-medium text-gray-600">{label}</label>
+                <input
+                  placeholder={`Enter ${label.toLowerCase()}`}
+                  value={form[key]}
+                  onChange={(e) => setForm({ ...form, [key]: e.target.value })}
+                  className="px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-indigo-400 bg-white"
+                />
+              </div>
+            ))}
+          </div>
+
+          <div className="flex gap-3 mt-4">
+            <button
+              onClick={handleAddInterviewee}
+              className="px-5 py-2 bg-indigo-500 text-white rounded-md text-sm hover:bg-indigo-600"
+            >
+              Save
+            </button>
+            <button
+              onClick={() => {
+                setShowForm(false);
+                setForm({
+                  name: "",
+                  gender: "",
+                  age: "",
+                  location: "",
+                  relationship_status: "",
+                  title: "",
+                  education: "",
+                });
+              }}
+              className="px-5 py-2 border border-gray-300 rounded-md text-sm text-gray-700 hover:bg-gray-100"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Interviewee Details */}
       {selectedInterviewee && (
         <div className="mt-6 p-5 border rounded bg-white shadow relative">
-
           <button
             onClick={() => setSelectedInterviewee(null)}
             className="absolute top-2 right-3 text-gray-500 hover:text-black"
           >
             ✕
           </button>
-
-          <h2 className="text-xl font-semibold mb-3">
-            {selectedInterviewee.name}
-          </h2>
-
+          <h2 className="text-xl font-semibold mb-3">{selectedInterviewee.name}</h2>
           <div className="grid grid-cols-2 gap-4 text-sm">
             <p><b>Gender:</b> {selectedInterviewee.gender}</p>
             <p><b>Age:</b> {selectedInterviewee.age}</p>
@@ -188,13 +229,10 @@ export default function EmpathyMapPage() {
         </div>
       )}
 
-      {/* 🔥 Questions */}
+      {/* Questions */}
       {selectedInterviewee && (
         <div className="mt-6 p-5 border rounded bg-gray-50">
-          <h3 className="font-semibold mb-3">
-            Interview Questions & Answers
-          </h3>
-
+          <h3 className="font-semibold mb-3">Interview Questions & Answers</h3>
           {[
             "What are your daily challenges?",
             "What motivates you?",
@@ -210,52 +248,6 @@ export default function EmpathyMapPage() {
         </div>
       )}
 
-      {/* 🔥 MODAL (FIXED UI ISSUE) */}
-      {showForm && (
-        <>
-          {/* Overlay */}
-          <div
-            className="fixed inset-0 bg-black/40 z-40"
-            onClick={() => setShowForm(false)}
-          />
-
-          {/* Modal */}
-          <div className="fixed inset-0 z-50 flex items-center justify-center">
-            <div className="bg-white p-6 rounded-lg shadow-xl w-[400px] relative">
-
-              <button
-                onClick={() => setShowForm(false)}
-                className="absolute top-2 right-3 text-gray-500"
-              >
-                ✕
-              </button>
-
-              <h3 className="font-semibold mb-4 text-lg">
-                Add Interviewee
-              </h3>
-
-              {Object.keys(form).map((key) => (
-                <input
-                  key={key}
-                  placeholder={key}
-                  value={form[key]}
-                  onChange={(e) =>
-                    setForm({ ...form, [key]: e.target.value })
-                  }
-                  className="block w-full mb-2 px-2 py-2 border rounded"
-                />
-              ))}
-
-              <button
-                onClick={handleAddInterviewee}
-                className="bg-indigo-500 text-white px-4 py-2 rounded mt-2 w-full"
-              >
-                Save
-              </button>
-            </div>
-          </div>
-        </>
-      )}
     </div>
   );
 }
