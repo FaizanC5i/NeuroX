@@ -7,6 +7,7 @@ export async function GET(request) {
     const projectId = searchParams.get("projectId");
     const includeGenerated = String(searchParams.get("includeGenerated") || "").toLowerCase() === "true";
     const groupByInterviewee = String(searchParams.get("groupByInterviewee") || "").toLowerCase() === "true";
+    const aggregateGenerated = String(searchParams.get("aggregateGenerated") || "").toLowerCase() === "true";
 
     if (!projectId) {
       return NextResponse.json(
@@ -16,6 +17,84 @@ export async function GET(request) {
     }
 
     const pool = await getPool();
+
+    if (aggregateGenerated) {
+      const result = await pool
+        .request()
+        .input("projectId", sql.Int, Number(projectId))
+        .query(`
+          SELECT
+            p.persona_id,
+            p.persona_name,
+            i.interview_id,
+            i.persona_output AS generated_output,
+            i.created_at AS generated_at
+          FROM personass p
+          LEFT JOIN intervieweess ie ON ie.persona_id = p.persona_id
+          LEFT JOIN interviewss i ON i.interviewee_id = ie.interviewee_id
+          WHERE p.project_id = @projectId
+          ORDER BY p.persona_id ASC, i.created_at ASC, i.interview_id ASC
+        `);
+
+      const personaMap = new Map();
+
+      for (const row of result.recordset) {
+        if (!personaMap.has(row.persona_id)) {
+          personaMap.set(row.persona_id, {
+            personaId: row.persona_id,
+            personaName: row.persona_name,
+            outputs: [],
+          });
+        }
+
+        const outputText = String(row.generated_output || "").trim();
+        if (outputText) {
+          personaMap.get(row.persona_id).outputs.push({
+            interviewId: row.interview_id,
+            generatedAt: row.generated_at,
+            text: outputText,
+          });
+        }
+      }
+
+      const personas = Array.from(personaMap.values());
+      const combinedOutput = personas
+        .map((persona) => {
+          const header = `Persona ID: ${persona.personaId}\nPersona Name: ${persona.personaName}`;
+
+          if (!persona.outputs.length) {
+            return `${header}\nPersona Outputs:\nNo persona output available.`;
+          }
+
+          const body = persona.outputs
+            .map((output, index) => {
+              const createdAt = output.generatedAt
+                ? new Date(output.generatedAt).toISOString()
+                : null;
+              const metadata = [
+                `Output ${index + 1}`,
+                output.interviewId ? `Interview ID: ${output.interviewId}` : null,
+                createdAt ? `Generated At: ${createdAt}` : null,
+              ]
+                .filter(Boolean)
+                .join(" | ");
+
+              return `${metadata}\n${output.text}`;
+            })
+            .join("\n\n");
+
+          return `${header}\nPersona Outputs:\n${body}`;
+        })
+        .join("\n\n----------------------------------------\n\n");
+
+      return NextResponse.json({
+        success: true,
+        data: {
+          personas,
+          combinedOutput,
+        },
+      });
+    }
 
     const result = includeGenerated && groupByInterviewee
       ? await pool

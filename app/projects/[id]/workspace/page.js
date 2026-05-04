@@ -199,7 +199,14 @@ export default function EmpathyMapPage() {
         throw new Error(data?.error?.message || "Failed to generate persona");
       }
 
-      setPersonaOutput(data?.data?.persona_output || "");
+      const nextPersonaOutput = data?.data?.persona_output || "";
+
+      setPersonaOutput(nextPersonaOutput);
+      setQuestionSets((prev) => prev.map((set) => (
+        set.interviewId === interviewId
+          ? { ...set, transcript: transcriptText, personaOutput: nextPersonaOutput }
+          : set
+      )));
       setPersonaStatus("ready");
     } catch (err) {
       setPersonaStatus("error");
