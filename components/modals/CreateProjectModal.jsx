@@ -170,13 +170,13 @@ export function CreateProjectModal({
             
             {/* Personas */}
             <div className="mb-4">
-              <label className="text-sm font-medium text-gray-700 mb-2 block">User Personas *</label>
+              <label className="text-sm font-medium text-gray-700 mb-2 block">User Groups *</label>
 
               {personas.map((p, index) => (
                 <div key={index} className="mb-4">
                   <div className="flex gap-3">
                     <textarea
-                      placeholder="Persona Name"
+                      placeholder="User-Group Name"
                       value={p.name}
                       onChange={(e) =>
                         updatePersona(index, "name", e.target.value)
@@ -185,7 +185,7 @@ export function CreateProjectModal({
                       className="w-1/3 px-3 py-2 border border-gray-300 rounded-md text-sm resize-none overflow-hidden"
                     />
                     <textarea
-                      placeholder="Persona Description"
+                      placeholder="User-Group Description"
                       value={p.description}
                       onChange={(e) =>
                         updatePersona(index, "description", e.target.value)

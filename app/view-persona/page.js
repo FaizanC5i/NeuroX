@@ -3,56 +3,34 @@
 import { useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 
+/* ===========================
+   SAFE PARSER (UPDATED)
+=========================== */
 function parsePersonaOutput(rawOutput, fallbackName) {
   const normalized = String(rawOutput || "").replace(/\r\n/g, "\n").trim();
 
-  if (!normalized) {
-    return {
-      name: fallbackName || "Persona",
-      quote: "",
-      background: "No generated persona output is available yet.",
-      goals: [],
-      motivations: [],
-      frustrations: [],
-      previousExperience: [],
-      expectations: [],
-    };
-  }
-
-  const getHeadingBlock = (text, headingPattern) => {
+  const getHeadingBlock = (text, heading) => {
     const regex = new RegExp(
-      `(?:^|\\n)\\s*(?:\\*\\*)?${headingPattern}(?:\\*\\*)?\\s*:?\\s*\\n?([\\s\\S]*?)(?=\\n\\s*(?:\\*\\*)?[A-Za-z][^\\n]{0,80}(?:\\*\\*)?\\s*:?\\s*(?:\\n|$)|$)`,
+      `${heading}:?\\s*([\\s\\S]*?)(?=\\n[A-Z][a-zA-Z ]+:|$)`,
       "i"
     );
-    const match = text.match(regex);
-    return match ? match[1].trim() : "";
+    return text.match(regex)?.[1]?.trim() || "";
   };
 
   const getBullets = (block) => {
     if (!block) return [];
     return block
       .split("\n")
-      .map((line) => line.replace(/^\s*[-*\u2022\d]+[.)-]?\s*/, "").trim())
+      .map((l) => l.replace(/^[-•*]\s*/, "").trim())
       .filter(Boolean);
   };
 
-  const nameMatch = normalized.match(/(?:^|\\n)\s*(?:Name|Persona Name)\s*:\s*(.+)$/im);
-  const quoteMatch = normalized.match(/"([^"]+)"/);
-
-  const background =
-    getHeadingBlock(normalized, "Background(?:\\s+Description)?") ||
-    getHeadingBlock(normalized, "Description") ||
-    "";
-
   return {
-    name: (nameMatch?.[1] || fallbackName || "Persona").trim(),
-    quote: (quoteMatch?.[1] || "").trim(),
-    background: background || "No background description found.",
-    goals: getBullets(getHeadingBlock(normalized, "Goals")),
-    motivations: getBullets(getHeadingBlock(normalized, "Motivations?")),
-    frustrations: getBullets(getHeadingBlock(normalized, "Frustrations?")),
-    previousExperience: getBullets(getHeadingBlock(normalized, "Previous\\s+Experience")),
-    expectations: getBullets(getHeadingBlock(normalized, "Expectations?")),
+    name: fallbackName || "Persona",
+    says: getBullets(getHeadingBlock(normalized, "Says")),
+    thinks: getBullets(getHeadingBlock(normalized, "Thinks")),
+    does: getBullets(getHeadingBlock(normalized, "Does")),
+    feels: getBullets(getHeadingBlock(normalized, "Feels")),
   };
 }
 
@@ -67,406 +45,414 @@ export default function ViewPersonaPage() {
   const [activePersonaId, setActivePersonaId] = useState(null);
   const [activeIntervieweeId, setActiveIntervieweeId] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState("");
+  const [personaDescription, setPersonaDescription] = useState("");
+  const [summary, setSummary] = useState("");
+const [loadingSummary, setLoadingSummary] = useState(false);
 
   useEffect(() => {
-    const fetchPersonaCards = async () => {
-      if (!projectId) {
-        setError("projectId is required");
-        setIsLoading(false);
-        return;
-      }
+    const fetchData = async () => {
+      const res = await fetch(
+        `/api/personas?projectId=${projectId}&includeGenerated=true&groupByInterviewee=true`
+      );
+      const data = await res.json();
 
-      setIsLoading(true);
-      setError("");
+      const map = new Map();
 
-      try {
-        const res = await fetch(
-          `/api/personas?projectId=${projectId}&includeGenerated=true&groupByInterviewee=true`
-        );
-        const data = await res.json();
-
-        if (!data?.success) {
-          throw new Error(data?.error?.message || "Failed to load persona cards");
+      for (const row of data.data || []) {
+        if (!map.has(row.persona_id)) {
+          map.set(row.persona_id, {
+            personaId: row.persona_id,
+            personaName: row.persona_name,
+            interviewees: [],
+          });
         }
 
-        const groupsMap = new Map();
-
-        for (const row of data?.data || []) {
-          if (!groupsMap.has(row.persona_id)) {
-            groupsMap.set(row.persona_id, {
-              personaId: row.persona_id,
-              personaName: row.persona_name,
-              interviewees: [],
-            });
-          }
-
-          if (row.interviewee_id) {
-            groupsMap.get(row.persona_id).interviewees.push({
-              intervieweeId: row.interviewee_id,
-              intervieweeName: row.interviewee_name || `Interviewee ${row.interviewee_id}`,
-              hasGeneratedOutput: Boolean((row.generated_output || "").trim()),
-              demographics: {
-                gender: row.gender || "-",
-                age: row.age ?? "-",
-                location: row.location || "-",
-                relationshipStatus: row.relationship_status || "-",
-                title: row.title || "-",
-                education: row.education || "-",
-              },
-              parsed: parsePersonaOutput(
-                row.generated_output || "",
-                row.interviewee_name || row.persona_name
-              ),
-            });
-          }
-        }
-
-        const groups = Array.from(groupsMap.values());
-
-        setPersonaGroups(groups);
-        const firstPersona = groups[0] || null;
-        const firstInterviewee = firstPersona?.interviewees?.[0] || null;
-        setActivePersonaId(firstPersona?.personaId || null);
-        setActiveIntervieweeId(firstInterviewee?.intervieweeId || null);
-      } catch (err) {
-        setError(err.message || "Failed to load persona cards");
-        setPersonaGroups([]);
-        setActivePersonaId(null);
-        setActiveIntervieweeId(null);
-      } finally {
-        setIsLoading(false);
+        map.get(row.persona_id).interviewees.push({
+          intervieweeId: row.interviewee_id,
+          intervieweeName: row.interviewee_name,
+          parsed: parsePersonaOutput(
+            row.generated_output,
+            row.interviewee_name
+          ),
+        });
       }
+
+      const groups = Array.from(map.values());
+      setPersonaGroups(groups);
+
+      setActivePersonaId(groups[0]?.personaId);
+      setActiveIntervieweeId(groups[0]?.interviewees?.[0]?.intervieweeId);
+
+      setIsLoading(false);
     };
 
-    fetchPersonaCards();
+    fetchData();
   }, [projectId]);
 
   const activePersonaGroup = useMemo(
-    () => personaGroups.find((group) => group.personaId === activePersonaId) || null,
+    
+    () => personaGroups.find((g) => g.personaId === activePersonaId),
     [personaGroups, activePersonaId]
   );
+  
 
-  const activeIntervieweeCard = useMemo(
+  const activeInterviewee = useMemo(
     () =>
       activePersonaGroup?.interviewees?.find(
-        (item) => item.intervieweeId === activeIntervieweeId
-      ) || null,
+        (i) => i.intervieweeId === activeIntervieweeId
+      ),
     [activePersonaGroup, activeIntervieweeId]
   );
+  useEffect(() => {
+  const fetchSummary = async () => {
+    if (!activeInterviewee) return;
+
+    setLoadingSummary(true);
+
+    try {
+      const res = await fetch("/api/description", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          project_description: projectName,
+          persona_title: activeInterviewee.intervieweeName,
+          persona_description:  [
+  ...activeInterviewee.parsed.says,
+  ...activeInterviewee.parsed.thinks,
+  ...activeInterviewee.parsed.does,
+  ...activeInterviewee.parsed.feels
+].join("\n")
+        }),
+      });
+
+      const data = await res.json();
+      setSummary(data.description || "No summary available");
+    } catch (err) {
+      setSummary("Failed to load summary");
+    }
+
+    setLoadingSummary(false);
+  };
+
+  fetchSummary();
+}, [activeInterviewee]); // ✅ key fix
+
+  const safeList = (arr) => (Array.isArray(arr) && arr.length ? arr : ["No data"]);
 
   return (
-    <div className="min-h-screen bg-[#f5f7fa] p-6 sm:p-8">
-      <div className="mx-auto max-w-6xl">
-        <div className="mb-6 flex items-center justify-between gap-3">
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-500">Empathize Stage</p>
-            <h1 className="mt-1 text-2xl font-semibold text-gray-900">User Persona</h1>
-            {projectName ? <p className="mt-1 text-sm text-gray-600">{projectName}</p> : null}
-          </div>
-          <button
-            onClick={() => router.back()}
-            className="rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-100"
-          >
-            Back
-          </button>
-        </div>
+    <div className="page">
+      <h1 className="page-title">{projectName || "User Persona"}</h1>
 
-        {isLoading ? (
-          <p className="rounded-lg border border-gray-200 bg-white px-4 py-10 text-center text-sm text-gray-500">Loading persona output...</p>
-        ) : error ? (
-          <p className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</p>
-        ) : personaGroups.length === 0 ? (
-          <p className="rounded-lg border border-gray-200 bg-white px-4 py-10 text-center text-sm text-gray-500">No personas found for this project.</p>
-        ) : (
-          <>
-            <div className="mb-4 border-b border-gray-200 pb-0 flex gap-2 flex-wrap">
-              {personaGroups.map((group) => (
-                <button
-                  key={group.personaId}
-                  onClick={() => {
-                    setActivePersonaId(group.personaId);
-                    setActiveIntervieweeId(group.interviewees?.[0]?.intervieweeId || null);
-                  }}
-                  className={`px-4 py-2 rounded-t-md text-sm font-medium transition ${
-                    activePersonaId === group.personaId
-                      ? "bg-indigo-500 text-white shadow"
-                      : "bg-gray-100 hover:bg-gray-200 text-gray-700"
-                  }`}
-                >
-                  {group.personaName}
-                </button>
-              ))}
-            </div>
+      {isLoading ? (
+        <p>Loading...</p>
+      ) : (
+        <div className="content">
+          <div className="tabs">
+             
+  {personaGroups.map((p) => (
+    <button
+      key={p.personaId}
+      className={activePersonaId === p.personaId ? "tab active" : "tab"}
+      onClick={() => {
+        setActivePersonaId(p.personaId);
+        setActiveIntervieweeId(p.interviewees[0]?.intervieweeId);
+      }}
+    >
+      {p.personaName}
+    </button>
+  ))}
+</div>
 
-            <div className="mb-4 border-b border-gray-200 pb-0 flex gap-2 flex-wrap">
-              {(activePersonaGroup?.interviewees || []).map((item) => (
-                <button
-                  key={item.intervieweeId}
-                  onClick={() => setActiveIntervieweeId(item.intervieweeId)}
-                  className={`px-4 py-2 rounded-t-md text-sm font-medium transition ${
-                    activeIntervieweeId === item.intervieweeId
-                      ? "bg-indigo-500 text-white shadow"
-                      : "bg-gray-100 hover:bg-gray-200 text-gray-700"
-                  }`}
-                >
-                  {item.intervieweeName}
-                </button>
-              ))}
-            </div>
+          {/* Interviewee Tabs */}
+         <div className="tabs">
+          
+  {activePersonaGroup?.interviewees?.map((i) => (
+    <button
+      key={i.intervieweeId}
+      className={activeIntervieweeId === i.intervieweeId ? "tab active" : "tab"}
+      onClick={() => setActiveIntervieweeId(i.intervieweeId)}
+    >
+      {i.intervieweeName}
+      
+    </button>
+    
+    
+  ))}
+</div>
 
-            {!activeIntervieweeCard ? (
-              <p className="rounded-lg border border-gray-200 bg-white px-4 py-4 text-sm text-gray-700">
-                No interviewees found for this persona.
-              </p>
-            ) : !activeIntervieweeCard?.hasGeneratedOutput ? (
-              <p className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-4 text-sm text-amber-800">
-                No persona output available for <b>{activeIntervieweeCard?.intervieweeName}</b> yet. Complete the interview transcript in the workspace to generate it.
-              </p>
-            ) : (
-              <div className="persona-container">
-                <div className="persona-sidebar">
-                  <div className="persona-avatar" />
+{/* ✅ SUMMARY (CORRECT POSITION) */}
+    <div className="summary-box">
+      {loadingSummary ? (
+        <p>Loading summary...</p>
+      ) : (
+        <p>{summary}</p>
+      )}
+    </div>
 
-                  <div className="persona-section-title">Demographics</div>
-                  <p><b>Gender:</b> {activeIntervieweeCard.demographics.gender}</p>
-                  <p><b>Age:</b> {activeIntervieweeCard.demographics.age}</p>
-                  <p><b>Location:</b> {activeIntervieweeCard.demographics.location}</p>
-                  <p><b>Relationship Status:</b> {activeIntervieweeCard.demographics.relationshipStatus}</p>
-                  <p><b>Title:</b> {activeIntervieweeCard.demographics.title}</p>
-                  <p><b>Education:</b> {activeIntervieweeCard.demographics.education}</p>
+          {/* EMPATHY MAP */}
+          {activeInterviewee && (
+            <div className="empathy-map">
 
-                  <div className="persona-section-title">Goals</div>
-                  <ul>
-                    {(activeIntervieweeCard.parsed.goals.length
-                      ? activeIntervieweeCard.parsed.goals
-                      : ["No goals extracted yet."]
-                    ).map((item, idx) => (
-                      <li key={`goal-${idx}`}>{item}</li>
-                    ))}
-                  </ul>
-                </div>
+              <div className="center">
+  <div className="avatar">
+    <span className="avatar-text">
+      {activeInterviewee.parsed.name}
+    </span>
+  </div>
+</div>
 
-                <div className="persona-main">
-                  <div className="persona-header">
-                    <h1>Name: {activeIntervieweeCard.parsed.name}</h1>
-                    <div className="persona-quote">
-                      {activeIntervieweeCard.parsed.quote
-                        ? `"${activeIntervieweeCard.parsed.quote}"`
-                        : "No quote available."}
-                    </div>
-                  </div>
+              <div className="quadrant says">
+                <h3>SAYS</h3>
+                  <div className="cards">
 
-                  <div className="persona-content">
-                    <div className="persona-grid-2">
-                      <div className="persona-block">
-                        <h3>Motivations</h3>
-                        <ul>
-                          {(activeIntervieweeCard.parsed.motivations.length
-                            ? activeIntervieweeCard.parsed.motivations
-                            : ["No motivations extracted yet."]
-                          ).map((item, idx) => (
-                            <li key={`mot-${idx}`}>{item}</li>
-                          ))}
-                        </ul>
-                      </div>
-                      <div className="persona-block">
-                        <h3>Frustrations</h3>
-                        <ul>
-                          {(activeIntervieweeCard.parsed.frustrations.length
-                            ? activeIntervieweeCard.parsed.frustrations
-                            : ["No frustrations extracted yet."]
-                          ).map((item, idx) => (
-                            <li key={`fr-${idx}`}>{item}</li>
-                          ))}
-                        </ul>
-                      </div>
-                    </div>
-
-                    <div className="persona-grid-2">
-                      <div className="persona-block">
-                        <h3>Previous Experience</h3>
-                        <ul>
-                          {(activeIntervieweeCard.parsed.previousExperience.length
-                            ? activeIntervieweeCard.parsed.previousExperience
-                            : ["No previous experience extracted yet."]
-                          ).map((item, idx) => (
-                            <li key={`px-${idx}`}>{item}</li>
-                          ))}
-                        </ul>
-                      </div>
-                      <div className="persona-block">
-                        <h3>Expectations</h3>
-                        <ul>
-                          {(activeIntervieweeCard.parsed.expectations.length
-                            ? activeIntervieweeCard.parsed.expectations
-                            : ["No expectations extracted yet."]
-                          ).map((item, idx) => (
-                            <li key={`ex-${idx}`}>{item}</li>
-                          ))}
-                        </ul>
-                      </div>
-                    </div>
-                  </div>
+                {safeList(activeInterviewee.parsed.says).map((t, i) => (
+                  <div key={i} className="note">{t}</div>
+                ))}
                 </div>
               </div>
-            )}
-          </>
-        )}
-      </div>
+
+              <div className="quadrant thinks">
+                <h3>THINKS</h3>
+                  <div className="cards">
+
+                {safeList(activeInterviewee.parsed.thinks).map((t, i) => (
+                  <div key={i} className="note">{t}</div>
+                ))}
+                </div>
+              </div>
+
+              <div className="quadrant does">
+                <h3>DOES</h3>
+                  <div className="cards">
+
+                {safeList(activeInterviewee.parsed.does).map((t, i) => (
+                  <div key={i} className="note">{t}</div>
+                ))}
+                </div>
+              </div>
+
+              <div className="quadrant feels">
+                <h3>FEELS</h3>
+                  <div className="cards">
+
+                {safeList(activeInterviewee.parsed.feels).map((t, i) => (
+                  <div key={i} className="note">{t}</div>
+                ))}
+                </div>
+              </div>
+
+            </div>
+          )}
+        </div>
+      )}
 
       <style jsx>{`
-        .persona-container {
-          width: 100%;
-          max-width: 1000px;
-          margin: 0 auto;
-          background: white;
-          display: flex;
-          box-shadow: 0 10px 25px rgba(0, 0, 0, 0.08);
-          border-radius: 8px;
-          overflow: hidden;
-        }
 
-        .persona-sidebar {
-          width: 30%;
-          background: #2f5b8c;
-          color: white;
-          padding: 20px;
-        }
+      .page-title {
+  font-size: 28px;      /* 🔥 bigger heading */
+  font-weight: 700;
+  margin-bottom: 20px;
+}
 
-        .persona-avatar {
-          width: 80px;
-          height: 80px;
-          border-radius: 50%;
-          background: #d9d9d9;
-          margin: 0 auto 20px;
-          position: relative;
-        }
+.page {
+  padding: 10px 10px;   /* 🔥 space under heading */
+}
+  
+      .tabs {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 12px;
+  border-bottom: 2px solid #e5e7eb;
+  padding-bottom: 5px;
+}
 
-        .persona-avatar::after {
-          content: "";
-          width: 35px;
-          height: 35px;
-          background: #555;
-          border-radius: 50%;
-          position: absolute;
-          top: 15px;
-          left: 50%;
-          transform: translateX(-50%);
-        }
+.tab {
+  padding: 8px 16px;
+  border: none;
+  background: #f3f4f6;
+  color: #374151;
+  border-radius: 6px 6px 0 0;
+  cursor: pointer;
+  font-size: 14px;
+  transition: all 0.2s ease;
+}
 
-        .persona-avatar::before {
-          content: "";
-          width: 50px;
-          height: 25px;
-          background: #555;
-          border-radius: 25px 25px 0 0;
-          position: absolute;
-          bottom: 10px;
-          left: 50%;
-          transform: translateX(-50%);
-        }
+.summary-box {
+  margin-top: 12px;
+  padding: 14px;
+  background: #f9fafb;
+  border-left: 4px solid #7c3aed;
+  border-radius: 6px;
+  font-size: 14px;
+  color: #374151;
+  line-height: 1.5;
+}
 
-        .persona-section-title {
-          margin-top: 20px;
-          font-weight: bold;
-          font-size: 14px;
-          margin-bottom: 10px;
-          opacity: 0.9;
-        }
+/* Hover */
+.tab:hover {
+  background: #e5e7eb;
+}
 
-        .persona-sidebar p {
-          font-size: 13px;
-          margin-bottom: 6px;
-        }
+/* Active tab (VIOLET THEME) */
+.tab.active {
+  background: linear-gradient(135deg, #7c3aed, #8b5cf6);
+  color: white;
+  font-weight: 600;
+  box-shadow: 0 -2px 6px rgba(0,0,0,0.1);
+}
+  
+       .empathy-map {
+  position: relative;
+  width: 100%;
+  min-height: 700px;
+  background: #f9fafb;
+  margin-top: 20px;
+  border: 2px solid #ddd;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  grid-template-rows: 1fr 1fr;
+  gap: 30px;
+  padding: 50px;
+  box-sizing: border-box;
+}
 
-        .persona-sidebar ul {
-          margin-top: 10px;
-          padding-left: 18px;
-        }
+/* CENTER CIRCLE */
+.center {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 130px;
+  height: 130px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #7c3aed, #8b5cf6);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: bold;
+  z-index: 5;
+  text-align: center;
+  padding: 10px;
+}
+  .persona-desc {
+  margin-top: 10px;
+  font-size: 13px;
+  color: #444;
+  max-width: 250px;
+  line-height: 1.4;
+  text-align: center;
+}
 
-        .persona-sidebar li {
-          font-size: 13px;
-          margin-bottom: 8px;
-        }
+/* CROSS LINES */
+.empathy-map::before,
+.empathy-map::after {
+  content: "";
+  position: absolute;
+  background: #bbb;
+  z-index: 1;
+}
 
-        .persona-main {
-          width: 70%;
-        }
+.empathy-map::before {
+  width: 2px;
+  height: 100%;
+  left: 50%;
+  top: 0;
+}
 
-        .persona-header {
-          background: #1d3f77;
-          color: white;
-          padding: 20px;
-        }
+.empathy-map::after {
+  height: 2px;
+  width: 100%;
+  top: 50%;
+  left: 0;
+}
 
-        .persona-header h1 {
-          font-size: 22px;
-          margin-bottom: 5px;
-        }
+/* QUADRANTS */
+.quadrant {
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+}
 
-        .persona-quote {
-          font-size: 13px;
-          font-style: italic;
-          opacity: 0.9;
-        }
+/* 🔥 CENTERED HEADINGS */
+.quadrant h3 {
+  text-align: center;
+  font-weight: bold;
+  margin-bottom: 15px;
+  letter-spacing: 1px;
+}
 
-        .persona-content {
-          padding: 20px;
-        }
+/* GRID POSITIONS */
+.says { grid-column: 1; grid-row: 1; }
+.thinks { grid-column: 2; grid-row: 1; }
+.does { grid-column: 1; grid-row: 2; }
+.feels { grid-column: 2; grid-row: 2; }
 
-        .persona-block {
-          margin-bottom: 20px;
-        }
+/* 🔥 HORIZONTAL CARD LAYOUT */
+.quadrant {
+  display: flex;
+  flex-direction: column;
+}
 
-        .persona-block h3 {
-          font-size: 15px;
-          margin-bottom: 10px;
-          color: #333;
-        }
+.quadrant > div {
+  display: flex;
+  flex-wrap: wrap;   /* allows wrapping */
+  gap: 10px;
+}
 
-        .persona-block p {
-          font-size: 13px;
-          color: #555;
-        }
+/* NOTE CARDS */
+.note {
+  padding: 10px 14px;
+  border-radius: 8px;
+  color: white;
+  font-size: 13px;
+  max-width: 130px;
+  flex: 0 0 auto;
 
-        .persona-grid-2 {
-          display: flex;
-          gap: 20px;
-        }
+  /* ✨ LIGHT SHADOW */
+  box-shadow: 0 2px 6px rgba(0,0,0,0.15);
 
-        .persona-grid-2 .persona-block {
-          width: 50%;
-        }
+  /* ✨ SMOOTH TRANSITION */
+  transition: all 0.25s ease;
+  cursor: pointer;
+}
 
-        .persona-block ul {
-          padding-left: 18px;
-        }
+.note:hover {
+  transform: translateY(-4px) scale(1.02);
 
-        .persona-block li {
-          font-size: 13px;
-          margin-bottom: 8px;
-          color: #444;
-        }
+  /* stronger shadow on hover */
+  box-shadow: 0 8px 18px rgba(0,0,0,0.25);
 
-        @media (max-width: 900px) {
-          .persona-container {
-            flex-direction: column;
-          }
+  /* optional glow effect */
+  filter: brightness(1.05);
+}
 
-          .persona-sidebar,
-          .persona-main {
-            width: 100%;
-          }
+/* COLORS */
+.says .note {
+  background: #894bf4;
+}
 
-          .persona-grid-2 {
-            flex-direction: column;
-          }
+.thinks .note {
+  background: #c0c4cb;
+  color:black;
+}
 
-          .persona-grid-2 .persona-block {
-            width: 100%;
-          }
-        }
+.does .note {
+  // background: linear-gradient(135deg, #7c3aed, #8b5cf6);
+  background: #c0c4cb;;
+  color:black;
+}
+
+.feels .note {
+  background: #894bf4;
+}
+  .cards {
+  display: flex;
+  flex-wrap: wrap;   /* allows horizontal flow */
+  gap: 10px;
+}
       `}</style>
     </div>
   );

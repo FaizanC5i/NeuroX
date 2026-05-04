@@ -327,10 +327,10 @@ export default function EmpathyMapPage() {
         .filter(Boolean);
     };
 
-    const motivationBullets = extractSectionBullets(personaOutput, "Motivations?");
-    const frustrationBullets = extractSectionBullets(personaOutput, "Frustrations?");
-    const goalsBullets = extractSectionBullets(personaOutput, "Goals");
-    const expectationsBullets = extractSectionBullets(personaOutput, "Expectations?");
+    const saysBullets = extractSectionBullets(personaOutput, "Says");
+    const thinksBullets = extractSectionBullets(personaOutput, "Thinks");
+    const doesBullets = extractSectionBullets(personaOutput, "Does");
+    const feelsBullets = extractSectionBullets(personaOutput, "Feels");
     const experienceBullets = extractSectionBullets(personaOutput, "Previous\\s+Experience");
 
     const bulletParagraphs = (items) =>
@@ -401,16 +401,17 @@ export default function EmpathyMapPage() {
             new Paragraph({ text: transcript?.trim() || "-", spacing: { after: 300 } }),
 
             new Paragraph({ text: "Persona Output Summary", heading: HeadingLevel.HEADING_1, spacing: { after: 160 } }),
-            new Paragraph({ text: "Goals", heading: HeadingLevel.HEADING_2, spacing: { after: 120 } }),
-            ...bulletParagraphs(goalsBullets),
-            new Paragraph({ text: "Motivations", heading: HeadingLevel.HEADING_2, spacing: { after: 120 } }),
-            ...bulletParagraphs(motivationBullets),
-            new Paragraph({ text: "Frustrations", heading: HeadingLevel.HEADING_2, spacing: { after: 120 } }),
-            ...bulletParagraphs(frustrationBullets),
-            new Paragraph({ text: "Previous Experience", heading: HeadingLevel.HEADING_2, spacing: { after: 120 } }),
-            ...bulletParagraphs(experienceBullets),
-            new Paragraph({ text: "Expectations", heading: HeadingLevel.HEADING_2, spacing: { after: 120 } }),
-            ...bulletParagraphs(expectationsBullets),
+           new Paragraph({ text: "Says", heading: HeadingLevel.HEADING_2 }),
+            ...bulletParagraphs(saysBullets),
+
+            new Paragraph({ text: "Thinks", heading: HeadingLevel.HEADING_2 }),
+            ...bulletParagraphs(thinksBullets),
+
+            new Paragraph({ text: "Does", heading: HeadingLevel.HEADING_2 }),
+            ...bulletParagraphs(doesBullets),
+
+            new Paragraph({ text: "Feels", heading: HeadingLevel.HEADING_2 }),
+            ...bulletParagraphs(feelsBullets),
 
             new Paragraph({ text: "Raw Persona Output", heading: HeadingLevel.HEADING_2, spacing: { after: 120 } }),
             new Paragraph({ text: personaOutput.trim(), spacing: { after: 120 } }),

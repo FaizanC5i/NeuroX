@@ -79,6 +79,7 @@ export default function ProjectDetailPage() {
   const [activePersonaCardId, setActivePersonaCardId] = useState(null);
   const [isPersonaCardsLoading, setIsPersonaCardsLoading] = useState(false);
   const [personaCardsError, setPersonaCardsError] = useState("");
+  const [showFullDesc, setShowFullDesc] = useState(false);
 
   useEffect(() => {
     fetchProject();
@@ -147,8 +148,22 @@ export default function ProjectDetailPage() {
     const stageDocs = getDocsForStage(stageId);
     if (stageDocs.length === 0) return "Not Started";
     if (stageDocs.length < templates.length) return "In Progress";
-    return "Completed";
+      return Math.round((completedStages / totalStages) * 100);
+
   };
+  const getProgress = () => {
+  const totalStages = STAGES.length;
+
+  let completedStages = 0;
+
+  STAGES.forEach((stage) => {
+    if (getStageStatus(stage.id) === "Completed") {
+      completedStages++;
+    }
+  });
+
+  return Math.round((completedStages / totalStages) * 100);
+};
 
   const getFileName = (path) => {
     if (!path) return "Document";
@@ -168,6 +183,10 @@ export default function ProjectDetailPage() {
         name: fallbackName || "Persona",
         quote: "",
         background: "No generated persona output is available yet.",
+        says:[],
+        thinks:[],
+        does:[],
+        feels:[],
         goals: [],
         motivations: [],
         frustrations: [],
@@ -200,15 +219,20 @@ export default function ProjectDetailPage() {
       "";
 
     return {
-      name: (nameMatch?.[1] || fallbackName || "Persona").trim(),
-      quote: (quoteMatch?.[1] || "").trim(),
-      background: background || "No background description found.",
-      goals: getBullets(getHeadingBlock(normalized, "Goals")),
-      motivations: getBullets(getHeadingBlock(normalized, "Motivations?")),
-      frustrations: getBullets(getHeadingBlock(normalized, "Frustrations?")),
-      previousExperience: getBullets(getHeadingBlock(normalized, "Previous\\s+Experience")),
-      expectations: getBullets(getHeadingBlock(normalized, "Expectations?")),
-    };
+  name: (nameMatch?.[1] || fallbackName || "Persona").trim(),
+  quote: (quoteMatch?.[1] || "").trim(),
+  background: background || "No background description found.",
+
+  says: getBullets(getHeadingBlock(normalized, "Says")),
+  thinks: getBullets(getHeadingBlock(normalized, "Thinks")),
+  does: getBullets(getHeadingBlock(normalized, "Does")),
+  feels: getBullets(getHeadingBlock(normalized, "Feels")),
+
+  // keep old if needed
+  goals: getBullets(getHeadingBlock(normalized, "Goals")),
+  motivations: getBullets(getHeadingBlock(normalized, "Motivations?")),
+  frustrations: getBullets(getHeadingBlock(normalized, "Frustrations?")),
+};
   };
 
   const fetchPersonaCards = async () => {
@@ -298,7 +322,9 @@ export default function ProjectDetailPage() {
               onClick={(e) => {
                 e.stopPropagation();
                 if (template.id === "user-persona") {
-                  router.push(`/view-persona?projectId=${encodeURIComponent(projectId)}&projectName=${encodeURIComponent(project?.projectName || "")}`);
+                    togglePersonaSection();   // ✅ SHOW INSIDE SAME PAGE
+
+                  // router.push(`/view-persona?projectId=${encodeURIComponent(projectId)}&projectName=${encodeURIComponent(project?.projectName || "")}`);
                   return;
                 }
                 router.push(workspaceUrl);
@@ -366,7 +392,29 @@ export default function ProjectDetailPage() {
           <button onClick={() => router.push("/projects")} className="w-10 h-10 rounded-full border border-gray-300 flex items-center justify-center hover:bg-gray-50 flex-shrink-0 mt-1"><ArrowLeft className="w-5 h-5 text-gray-700" /></button>
           <div className="flex-1 min-w-0">
             <h1 className="text-2xl font-semibold text-gray-900 mb-2">{project.projectName}</h1>
-            <p className="text-sm text-gray-600 leading-relaxed max-w-3xl">{project.projectDescription || "No description"}</p>
+            <p
+  className={`text-sm text-gray-600 leading-relaxed max-w-3xl cursor-pointer ${
+    showFullDesc ? "" : "line-clamp-2"
+  }`}
+  onClick={() => setShowFullDesc(!showFullDesc)}
+>
+  {project.projectDescription || "No description"}
+  {!showFullDesc && "..."}
+</p>
+            {/* ✅ PROGRESS BAR */}
+<div className="mt-6">
+  <div className="flex justify-between text-sm mb-1">
+    <span className="text-gray-600">Project Progress</span>
+    <span className="font-medium text-gray-900">{getProgress()}%</span>
+  </div>
+
+  <div className="w-full bg-gray-200 rounded-full h-3">
+    <div
+      className="bg-[#702dff] h-3 rounded-full transition-all duration-500"
+      style={{ width: `${getProgress()}%` }}
+    ></div>
+  </div>
+</div>
             <div className="flex items-center gap-8 mt-4">
               <div className="flex items-center gap-2"><span className="text-xs uppercase tracking-wide text-gray-500 font-medium">Client</span><span className="text-sm text-gray-900 font-medium">{project.client || "N/A"}</span></div>
               <div className="h-4 w-px bg-gray-300" />
@@ -591,54 +639,56 @@ export default function ProjectDetailPage() {
                         </div>
 
                         <div className="persona-grid-2">
-                          <div className="persona-block">
-                            <h3>Motivations</h3>
-                            <ul>
-                              {(activePersonaCard.parsed.motivations.length
-                                ? activePersonaCard.parsed.motivations
-                                : ["No motivations extracted yet."]
-                              ).map((item, idx) => (
-                                <li key={`mot-${idx}`}>{item}</li>
-                              ))}
-                            </ul>
-                          </div>
-                          <div className="persona-block">
-                            <h3>Frustrations</h3>
-                            <ul>
-                              {(activePersonaCard.parsed.frustrations.length
-                                ? activePersonaCard.parsed.frustrations
-                                : ["No frustrations extracted yet."]
-                              ).map((item, idx) => (
-                                <li key={`fr-${idx}`}>{item}</li>
-                              ))}
-                            </ul>
-                          </div>
-                        </div>
+  <div className="persona-block">
+    <h3>Says</h3>
+    <ul>
+      {(activePersonaCard.parsed.says.length
+        ? activePersonaCard.parsed.says
+        : ["No data extracted yet."]
+      ).map((item, idx) => (
+        <li key={`says-${idx}`}>{item}</li>
+      ))}
+    </ul>
+  </div>
 
-                        <div className="persona-grid-2">
-                          <div className="persona-block">
-                            <h3>Previous Experience</h3>
-                            <ul>
-                              {(activePersonaCard.parsed.previousExperience.length
-                                ? activePersonaCard.parsed.previousExperience
-                                : ["No previous experience extracted yet."]
-                              ).map((item, idx) => (
-                                <li key={`px-${idx}`}>{item}</li>
-                              ))}
-                            </ul>
-                          </div>
-                          <div className="persona-block">
-                            <h3>Expectations</h3>
-                            <ul>
-                              {(activePersonaCard.parsed.expectations.length
-                                ? activePersonaCard.parsed.expectations
-                                : ["No expectations extracted yet."]
-                              ).map((item, idx) => (
-                                <li key={`ex-${idx}`}>{item}</li>
-                              ))}
-                            </ul>
-                          </div>
-                        </div>
+  <div className="persona-block">
+    <h3>Thinks</h3>
+    <ul>
+      {(activePersonaCard.parsed.thinks.length
+        ? activePersonaCard.parsed.thinks
+        : ["No data extracted yet."]
+      ).map((item, idx) => (
+        <li key={`thinks-${idx}`}>{item}</li>
+      ))}
+    </ul>
+  </div>
+</div>
+
+<div className="persona-grid-2">
+  <div className="persona-block">
+    <h3>Does</h3>
+    <ul>
+      {(activePersonaCard.parsed.does.length
+        ? activePersonaCard.parsed.does
+        : ["No data extracted yet."]
+      ).map((item, idx) => (
+        <li key={`does-${idx}`}>{item}</li>
+      ))}
+    </ul>
+  </div>
+
+  <div className="persona-block">
+    <h3>Feels</h3>
+    <ul>
+      {(activePersonaCard.parsed.feels.length
+        ? activePersonaCard.parsed.feels
+        : ["No data extracted yet."]
+      ).map((item, idx) => (
+        <li key={`feels-${idx}`}>{item}</li>
+      ))}
+    </ul>
+  </div>
+</div>
                       </div>
                     </div>
                   </div>
