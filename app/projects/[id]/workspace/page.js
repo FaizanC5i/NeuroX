@@ -21,7 +21,9 @@ export default function EmpathyMapPage() {
   const [projectName, setProjectName] = useState("");
   const [projectDescription, setProjectDescription] = useState("");
   const [enhancedPersonaDescription, setEnhancedPersonaDescription] = useState("");
-  const [isEnhancingPersona, setIsEnhancingPersona] = useState(false);
+  const [isEditingPersonaContext, setIsEditingPersonaContext] = useState(false);
+  const [personaContextDraft, setPersonaContextDraft] = useState("");
+  const [personaContextSaveStatus, setPersonaContextSaveStatus] = useState("");
   const [interviewees, setInterviewees] = useState([]);
 
   const [showForm, setShowForm] = useState(false);
@@ -31,6 +33,8 @@ export default function EmpathyMapPage() {
   const [isLoadingQuestions, setIsLoadingQuestions] = useState(false);
   const [isGeneratingQuestions, setIsGeneratingQuestions] = useState(false);
   const [transcript, setTranscript] = useState("");
+  const [transcriptDraft, setTranscriptDraft] = useState("");
+  const [isEditingTranscript, setIsEditingTranscript] = useState(false);
   const [saveStatus, setSaveStatus] = useState(""); // "saving" | "saved" | "error" | ""
   const [personaOutput, setPersonaOutput] = useState("");
   const [personaStatus, setPersonaStatus] = useState(""); // "generating" | "ready" | "error" | ""
@@ -93,31 +97,44 @@ export default function EmpathyMapPage() {
     }
   };
 
-  const fetchEnhancedPersonaDescription = async (persona) => {
-    if (!persona) return;
+  const savePersonaContext = async () => {
+    if (!activePersona?.persona_id) return;
 
-    setIsEnhancingPersona(true);
-    setEnhancedPersonaDescription(persona.persona_description || "");
+    const nextValue = String(personaContextDraft || "").trim();
+    if (!nextValue) {
+      alert("Persona context cannot be empty");
+      return;
+    }
+
+    setPersonaContextSaveStatus("saving");
 
     try {
-      const res = await fetch("/api/enhance-persona", {
-        method: "POST",
+      const res = await fetch("/api/personas", {
+        method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          project_description: projectDescription || "Project context not provided",
-          persona_title: persona.persona_name,
-          persona_description: persona.persona_description || "",
+          personaId: activePersona.persona_id,
+          personaDescription: nextValue,
         }),
       });
 
       const data = await res.json();
-      if (data?.success && data?.data?.persona_description) {
-        setEnhancedPersonaDescription(data.data.persona_description);
+      if (!data?.success) {
+        throw new Error(data?.error?.message || "Failed to update persona context");
       }
-    } catch (err) {
-      console.error("ENHANCE PERSONA ERROR:", err);
-    } finally {
-      setIsEnhancingPersona(false);
+
+      setEnhancedPersonaDescription(nextValue);
+      setPersonas((prev) => prev.map((p) => (
+        p.persona_id === activePersona.persona_id
+          ? { ...p, persona_description: nextValue }
+          : p
+      )));
+      setActivePersona((prev) => (prev ? { ...prev, persona_description: nextValue } : prev));
+      setIsEditingPersonaContext(false);
+      setPersonaContextSaveStatus("saved");
+    } catch (error) {
+      setPersonaContextSaveStatus("error");
+      alert(error.message || "Failed to update persona context");
     }
   };
 
@@ -222,17 +239,15 @@ export default function EmpathyMapPage() {
   useEffect(() => {
     if (activePersona) {
       fetchInterviewees(activePersona.persona_id);
+      setEnhancedPersonaDescription(activePersona.persona_description || "");
+      setPersonaContextDraft(activePersona.persona_description || "");
+      setIsEditingPersonaContext(false);
+      setPersonaContextSaveStatus("");
       setSelectedInterviewee(null);
       setQuestionSets([]);
       setQuestionError("");
     }
   }, [activePersona]);
-
-  useEffect(() => {
-    if (activePersona) {
-      fetchEnhancedPersonaDescription(activePersona);
-    }
-  }, [activePersona, projectDescription]);
 
   useEffect(() => {
     if (selectedInterviewee?.interviewee_id) {
@@ -245,18 +260,61 @@ export default function EmpathyMapPage() {
   }, [selectedInterviewee]);
 
   useEffect(() => {
-    setTranscript(questionSets[0]?.transcript || "");
+    const latestSubmittedSet = questionSets.find((setItem) => String(setItem?.transcript || "").trim());
+    const initialTranscript = latestSubmittedSet?.transcript || questionSets[0]?.transcript || "";
+    setTranscript(initialTranscript);
+    setTranscriptDraft(initialTranscript);
+    setIsEditingTranscript(!initialTranscript.trim());
     setPersonaOutput(questionSets[0]?.personaOutput || "");
     setPersonaError("");
     setPersonaStatus("");
     setSaveStatus("");
-  }, [selectedInterviewee?.interviewee_id, questionSets[0]?.interviewId]);
+  }, [selectedInterviewee?.interviewee_id, questionSets]);
 
   useEffect(() => {
-    if (!transcriptRef.current) return;
+    if (!transcriptRef.current || !isEditingTranscript) return;
     transcriptRef.current.style.height = "auto";
     transcriptRef.current.style.height = `${Math.max(transcriptRef.current.scrollHeight, 240)}px`;
-  }, [transcript]);
+  }, [transcriptDraft, isEditingTranscript]);
+
+  const handleSubmitTranscript = async () => {
+    const interviewId = questionSets[0]?.interviewId;
+    if (!interviewId) return;
+
+    setSaveStatus("saving");
+
+    try {
+      const res = await fetch("/api/generate-questions", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ interviewId, transcript: transcriptDraft }),
+      });
+
+      const data = await res.json();
+      if (!data?.success) {
+        throw new Error(data?.error?.message || "Failed to save transcript");
+      }
+
+      setTranscript(transcriptDraft);
+      setQuestionSets((prev) => prev.map((setItem) => (
+        setItem.interviewId === interviewId
+          ? { ...setItem, transcript: transcriptDraft }
+          : setItem
+      )));
+      setSaveStatus("saved");
+      setIsEditingTranscript(false);
+
+      if (transcriptDraft.trim()) {
+        await generatePersonaForInterview(interviewId, transcriptDraft);
+      } else {
+        setPersonaOutput("");
+        setPersonaStatus("");
+        setPersonaError("");
+      }
+    } catch {
+      setSaveStatus("error");
+    }
+  };
 
   const handleAddInterviewee = async () => {
     const res = await fetch("/api/interviewees", {
@@ -493,14 +551,83 @@ export default function EmpathyMapPage() {
               </div>
 
               <div className="inline-flex items-center gap-2 rounded-full border border-green-200 bg-green-50 px-3.5 py-1.5 text-xs font-semibold text-green-600 transition duration-300 group-hover:shadow-sm group-hover:shadow-green-100">
-                <span className={`h-2 w-2 rounded-full ${isEnhancingPersona ? "bg-indigo-500 animate-pulse" : "bg-green-500"}`} />
-                {isEnhancingPersona ? "Enhancing with AI" : "Enhanced"}
+                <span className="h-2 w-2 rounded-full bg-green-500" />
+                {isEditingPersonaContext ? "Editing" : "Saved"}
               </div>
             </div>
 
-            <p className={`relative mt-4 rounded-xl border border-gray-200 border-l-4 border-l-indigo-400 bg-gradient-to-r from-gray-50 to-gray-100 px-4 py-3 text-sm leading-relaxed text-gray-800 break-words transition-opacity duration-300 ${isEnhancingPersona ? "opacity-90" : "opacity-100"}`}>
-              {enhancedPersonaDescription || activePersona.persona_description}
-            </p>
+            <div className="relative mt-4">
+              <div className="mb-2 flex justify-end">
+                {!isEditingPersonaContext ? (
+                  <button
+                    onClick={() => {
+                      setIsEditingPersonaContext(true);
+                      setPersonaContextDraft(enhancedPersonaDescription || activePersona.persona_description || "");
+                      setPersonaContextSaveStatus("");
+                    }}
+                    title="Edit persona context"
+                    className="inline-flex items-center gap-1 rounded-md border border-gray-200 bg-white px-2.5 py-1.5 text-xs font-medium text-gray-600 transition hover:bg-gray-50"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-3.5 w-3.5" aria-hidden="true">
+                      <path d="M12 20h9" />
+                      <path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z" />
+                    </svg>
+                    Edit
+                  </button>
+                ) : (
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => {
+                        setIsEditingPersonaContext(false);
+                        setPersonaContextDraft(enhancedPersonaDescription || activePersona.persona_description || "");
+                        setPersonaContextSaveStatus("");
+                      }}
+                      className="rounded-md border border-gray-200 bg-white px-2.5 py-1.5 text-xs font-medium text-gray-600 transition hover:bg-gray-50"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={savePersonaContext}
+                      className="rounded-md bg-indigo-600 px-2.5 py-1.5 text-xs font-medium text-white transition hover:bg-indigo-700"
+                    >
+                      Save
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              {isEditingPersonaContext ? (
+                <textarea
+                  value={personaContextDraft}
+                  onChange={(e) => {
+                    setPersonaContextDraft(e.target.value);
+                    setPersonaContextSaveStatus("");
+                  }}
+                  rows={5}
+                  className="w-full resize-y rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm leading-relaxed text-gray-800 shadow-sm outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
+                />
+              ) : (
+                <p className="rounded-xl border border-gray-200 border-l-4 border-l-indigo-400 bg-gradient-to-r from-gray-50 to-gray-100 px-4 py-3 text-sm leading-relaxed text-gray-800 break-words">
+                  {enhancedPersonaDescription || activePersona.persona_description}
+                </p>
+              )}
+
+              {personaContextSaveStatus && (
+                <p className={`mt-2 text-right text-xs ${
+                  personaContextSaveStatus === "saving"
+                    ? "text-gray-400"
+                    : personaContextSaveStatus === "saved"
+                      ? "text-emerald-600"
+                      : "text-red-500"
+                }`}>
+                  {personaContextSaveStatus === "saving"
+                    ? "Saving..."
+                    : personaContextSaveStatus === "saved"
+                      ? "Saved"
+                      : "Failed to save"}
+                </p>
+              )}
+            </div>
           </div>
         )}
       </div>
@@ -756,56 +883,80 @@ export default function EmpathyMapPage() {
 
                 <div className="mt-8 border-t border-gray-200 pt-6">
                   <div className="mb-4">
-                    <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-500">Your Answers</p>
-                    <h4 className="mt-2 text-lg font-semibold text-gray-900">Structured Transcript</h4>
+                    <div className="flex items-center justify-between gap-3">
+                      <div>
+                        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-500">Your Answers</p>
+                        <h4 className="mt-2 text-lg font-semibold text-gray-900">Structured Transcript</h4>
+                      </div>
+                      {!isEditingTranscript && (
+                        <button
+                          onClick={() => {
+                            setTranscriptDraft(transcript || "");
+                            setIsEditingTranscript(true);
+                            setSaveStatus("");
+                          }}
+                          title="Edit transcript"
+                          className="inline-flex items-center gap-1 rounded-md border border-gray-200 bg-white px-2.5 py-1.5 text-xs font-medium text-gray-600 transition hover:bg-gray-50"
+                        >
+                          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-3.5 w-3.5" aria-hidden="true">
+                            <path d="M12 20h9" />
+                            <path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z" />
+                          </svg>
+                          Edit
+                        </button>
+                      )}
+                    </div>
                     <p className="mt-1 text-sm leading-6 text-gray-600">
                       Write one continuous transcript using the question numbers so your notes stay easy to review.
                     </p>
                   </div>
 
                   <div className="relative">
-                    <textarea
-                      ref={transcriptRef}
-                      value={transcript}
-                      onChange={(e) => { setTranscript(e.target.value); setSaveStatus(""); }}
-                      onBlur={async () => {
-                        const interviewId = questionSets[0]?.interviewId;
-                        if (!interviewId) return;
-                        setSaveStatus("saving");
-                        try {
-                          const res = await fetch("/api/generate-questions", {
-                            method: "PATCH",
-                            headers: { "Content-Type": "application/json" },
-                            body: JSON.stringify({ interviewId, transcript }),
-                          });
-                          const data = await res.json();
-                          if (!data?.success) {
-                            throw new Error(data?.error?.message || "Failed to save transcript");
-                          }
+                    {isEditingTranscript ? (
+                      <>
+                        <textarea
+                          ref={transcriptRef}
+                          value={transcriptDraft}
+                          onChange={(e) => {
+                            setTranscriptDraft(e.target.value);
+                            setSaveStatus("");
+                          }}
+                          placeholder={"Write your answers like:\nQ1: ...\nQ2: ...\nQ3: ..."}
+                          className="min-h-[240px] w-full resize-none rounded-xl border border-gray-300 bg-white px-4 py-4 font-mono text-sm leading-7 text-gray-800 shadow-sm outline-none transition placeholder:text-gray-400 hover:border-gray-400 focus:border-indigo-500 focus:ring-4 focus:ring-indigo-100"
+                        />
+                        <div className="mt-3 flex justify-end gap-2">
+                          <button
+                            onClick={() => {
+                              setTranscriptDraft(transcript || "");
+                              setIsEditingTranscript(false);
+                              setSaveStatus("");
+                            }}
+                            className="inline-flex items-center justify-center rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-100"
+                          >
+                            Cancel
+                          </button>
+                          <button
+                            onClick={handleSubmitTranscript}
+                            disabled={saveStatus === "saving"}
+                            className="inline-flex items-center justify-center rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-indigo-700 disabled:opacity-60"
+                          >
+                            {saveStatus === "saving" ? "Submitting..." : "Submit Transcript"}
+                          </button>
+                        </div>
+                      </>
+                    ) : (
+                      <div className="min-h-[240px] w-full whitespace-pre-wrap rounded-xl border border-gray-300 bg-white px-4 py-4 font-mono text-sm leading-7 text-gray-800 shadow-sm">
+                        {transcript?.trim() ? transcript : "No transcript submitted yet."}
+                      </div>
+                    )}
 
-                          setSaveStatus("saved");
-
-                          if (transcript.trim()) {
-                            await generatePersonaForInterview(interviewId, transcript);
-                          } else {
-                            setPersonaOutput("");
-                            setPersonaStatus("");
-                            setPersonaError("");
-                          }
-                        } catch {
-                          setSaveStatus("error");
-                        }
-                      }}
-                      placeholder={"Write your answers like:\nQ1: ...\nQ2: ...\nQ3: ..."}
-                      className="min-h-[240px] w-full resize-none rounded-xl border border-gray-300 bg-white px-4 py-4 font-mono text-sm leading-7 text-gray-800 shadow-sm outline-none transition placeholder:text-gray-400 hover:border-gray-400 focus:border-indigo-500 focus:ring-4 focus:ring-indigo-100"
-                    />
                     {saveStatus && (
                       <p className={`mt-1.5 text-right text-xs ${
                         saveStatus === "saving" ? "text-gray-400" :
                         saveStatus === "saved" ? "text-emerald-600" :
                         "text-red-500"
                       }`}>
-                        {saveStatus === "saving" ? "Saving…" : saveStatus === "saved" ? "✓ Saved" : "Failed to save"}
+                        {saveStatus === "saving" ? "Saving..." : saveStatus === "saved" ? "Submitted and saved" : "Failed to save"}
                       </p>
                     )}
                   </div>
@@ -832,7 +983,7 @@ export default function EmpathyMapPage() {
                           ? "Persona updated"
                           : personaStatus === "error"
                             ? "Generation failed"
-                            : "Save transcript to generate"}
+                            : "Submit transcript to generate"}
                     </p>
                   </div>
 

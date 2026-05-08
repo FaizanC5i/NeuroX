@@ -36,6 +36,26 @@ function parsePersonaOutput(rawOutput, fallbackName) {
 };
 }
 
+function buildPersonaOutput(data) {
+  return `Says:
+${(data.says || []).map((x) => `- ${x}`).join("\n")}
+
+Thinks:
+${(data.thinks || []).map((x) => `- ${x}`).join("\n")}
+
+Does:
+${(data.does || []).map((x) => `- ${x}`).join("\n")}
+
+Feels:
+${(data.feels || []).map((x) => `- ${x}`).join("\n")}
+
+Pain Points:
+${(data.painPoints || []).map((x) => `- ${x}`).join("\n")}
+
+Needs:
+${(data.needs || []).map((x) => `- ${x}`).join("\n")}`;
+}
+
 export default function ViewPersonaPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -51,6 +71,9 @@ export default function ViewPersonaPage() {
   const [summary, setSummary] = useState("");
 const [loadingSummary, setLoadingSummary] = useState(false);
 const [insights, setInsights] = useState([]);
+const [isEditing, setIsEditing] = useState(false);
+const [editableData, setEditableData] = useState(null);
+const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -71,6 +94,7 @@ const [insights, setInsights] = useState([]);
         }
 
         map.get(row.persona_id).interviewees.push({
+          interviewId: row.interview_id,
           intervieweeId: row.interviewee_id,
           intervieweeName: row.interviewee_name,
           parsed: parsePersonaOutput(
@@ -173,6 +197,30 @@ setInsights(insightsPart);
 
   const safeList = (arr) => (Array.isArray(arr) && arr.length ? arr : ["No data"]);
 
+  useEffect(() => {
+    if (!activeInterviewee?.parsed) return;
+
+    const normalizeEditable = (arr) => (Array.isArray(arr) && arr.length ? [...arr] : [""]);
+
+    setEditableData({
+      says: normalizeEditable(activeInterviewee.parsed.says),
+      thinks: normalizeEditable(activeInterviewee.parsed.thinks),
+      does: normalizeEditable(activeInterviewee.parsed.does),
+      feels: normalizeEditable(activeInterviewee.parsed.feels),
+      painPoints: normalizeEditable(activeInterviewee.parsed.painPoints),
+      needs: normalizeEditable(activeInterviewee.parsed.needs),
+    });
+    setIsEditing(false);
+  }, [activeInterviewee]);
+
+  const maxRows = Math.max(
+    editableData?.says?.length || 0,
+    editableData?.thinks?.length || 0,
+    editableData?.does?.length || 0,
+    editableData?.feels?.length || 0,
+    1
+  );
+
   return (
     <div className="page">
       <h1 className="page-title">{projectName || "User Persona"}</h1>
@@ -224,59 +272,184 @@ setInsights(insightsPart);
 </div>
   
 
-          {/* EMPATHY MAP */}
+          {/* EMPATHY MAP TABLE */}
           {activeInterviewee && (
-            <div className="empathy-map">
+            <>
+              <div className="empathy-actions">
+                <button
+                  className="action-btn secondary"
+                  onClick={() => setIsEditing((prev) => !prev)}
+                >
+                  {isEditing ? "Cancel" : "Edit"}
+                </button>
 
-              <div className="center">
-  <div className="avatar">
-    <span className="avatar-text">
-      {activeInterviewee.parsed.name}
-    </span>
-  </div>
-</div>
+                {isEditing && (
+                  <>
+                    <button
+                      className="action-btn slate"
+                      onClick={() => {
+                        setEditableData((prev) => ({
+                          says: [...(prev?.says || []), ""],
+                          thinks: [...(prev?.thinks || []), ""],
+                          does: [...(prev?.does || []), ""],
+                          feels: [...(prev?.feels || []), ""],
+                          painPoints: [...(prev?.painPoints || []), ""],
+                          needs: [...(prev?.needs || []), ""],
+                        }));
+                      }}
+                    >
+                      Add Row
+                    </button>
+                    <button
+                      className="action-btn success"
+                      disabled={isSaving || !activeInterviewee?.interviewId}
+                      onClick={async () => {
+                        if (!activeInterviewee?.interviewId) {
+                          alert("No interview found for this persona entry.");
+                          return;
+                        }
 
-              <div className="quadrant says">
-                <h3>SAYS</h3>
-                  <div className="cards">
+                        try {
+                          setIsSaving(true);
+                          const personaOutput = buildPersonaOutput(editableData || {});
 
-                {safeList(activeInterviewee.parsed.says).map((t, i) => (
-                  <div key={i} className="note">{t}</div>
-                ))}
+                          const res = await fetch("/api/update-persona-output", {
+                            method: "POST",
+                            headers: {
+                              "Content-Type": "application/json",
+                            },
+                            body: JSON.stringify({
+                              interviewId: activeInterviewee.interviewId,
+                              personaOutput,
+                            }),
+                          });
+
+                          const payload = await res.json();
+
+                          if (!res.ok || !payload?.success) {
+                            alert(payload?.error?.message || "Save failed");
+                            return;
+                          }
+
+                          alert("Saved successfully");
+                          setIsEditing(false);
+                          window.location.reload();
+                        } catch {
+                          alert("Something went wrong while saving");
+                        } finally {
+                          setIsSaving(false);
+                        }
+                      }}
+                    >
+                      {isSaving ? "Saving..." : "Save"}
+                    </button>
+                  </>
+                )}
+              </div>
+
+              <div className="summary-box empathy-shell">
+                <h3 className="empathy-heading">Empathy Map</h3>
+
+                <div className="table-wrap">
+                  <table className="empathy-table">
+                    <thead>
+                      <tr>
+                        <th className="dark-col">Says</th>
+                        <th className="grey-col">Thinks</th>
+                        <th className="dark-col">Does</th>
+                        <th className="grey-col">Feels</th>
+                      </tr>
+                    </thead>
+
+                    <tbody>
+                      {Array.from({ length: maxRows }).map((_, rowIndex) => (
+                        <tr
+                          key={rowIndex}
+                          className={rowIndex % 2 === 0 ? "light-row" : "white-row"}
+                        >
+                          <td>
+                            {isEditing ? (
+                              <textarea
+                                value={editableData?.says?.[rowIndex] || ""}
+                                onChange={(e) => {
+                                  setEditableData((prev) => {
+                                    const next = { ...(prev || {}) };
+                                    next.says = [...(prev?.says || [])];
+                                    next.says[rowIndex] = e.target.value;
+                                    return next;
+                                  });
+                                }}
+                                className="cell-input"
+                              />
+                            ) : (
+                              editableData?.says?.[rowIndex] || "No data"
+                            )}
+                          </td>
+
+                          <td>
+                            {isEditing ? (
+                              <textarea
+                                value={editableData?.thinks?.[rowIndex] || ""}
+                                onChange={(e) => {
+                                  setEditableData((prev) => {
+                                    const next = { ...(prev || {}) };
+                                    next.thinks = [...(prev?.thinks || [])];
+                                    next.thinks[rowIndex] = e.target.value;
+                                    return next;
+                                  });
+                                }}
+                                className="cell-input"
+                              />
+                            ) : (
+                              editableData?.thinks?.[rowIndex] || "No data"
+                            )}
+                          </td>
+
+                          <td>
+                            {isEditing ? (
+                              <textarea
+                                value={editableData?.does?.[rowIndex] || ""}
+                                onChange={(e) => {
+                                  setEditableData((prev) => {
+                                    const next = { ...(prev || {}) };
+                                    next.does = [...(prev?.does || [])];
+                                    next.does[rowIndex] = e.target.value;
+                                    return next;
+                                  });
+                                }}
+                                className="cell-input"
+                              />
+                            ) : (
+                              editableData?.does?.[rowIndex] || "No data"
+                            )}
+                          </td>
+
+                          <td>
+                            {isEditing ? (
+                              <textarea
+                                value={editableData?.feels?.[rowIndex] || ""}
+                                onChange={(e) => {
+                                  setEditableData((prev) => {
+                                    const next = { ...(prev || {}) };
+                                    next.feels = [...(prev?.feels || [])];
+                                    next.feels[rowIndex] = e.target.value;
+                                    return next;
+                                  });
+                                }}
+                                className="cell-input"
+                              />
+                            ) : (
+                              editableData?.feels?.[rowIndex] || "No data"
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
                 </div>
               </div>
 
-              <div className="quadrant thinks">
-                <h3>THINKS</h3>
-                  <div className="cards">
-
-                {safeList(activeInterviewee.parsed.thinks).map((t, i) => (
-                  <div key={i} className="note">{t}</div>
-                ))}
-                </div>
-              </div>
-
-              <div className="quadrant does">
-                <h3>DOES</h3>
-                  <div className="cards">
-
-                {safeList(activeInterviewee.parsed.does).map((t, i) => (
-                  <div key={i} className="note">{t}</div>
-                ))}
-                </div>
-              </div>
-
-              <div className="quadrant feels">
-                <h3>FEELS</h3>
-                  <div className="cards">
-
-                {safeList(activeInterviewee.parsed.feels).map((t, i) => (
-                  <div key={i} className="note">{t}</div>
-                ))}
-                </div>
-              </div>
-
-            </div>
+            </>
           )}
         </div>
       )}{/* PAIN POINTS */}
@@ -284,8 +457,8 @@ setInsights(insightsPart);
   <div className="summary-box">
     <h3>Pain Points</h3>
 
-    {activeInterviewee.parsed.painPoints?.length > 0 ? (
-      activeInterviewee.parsed.painPoints.map((item, i) => (
+    {safeList(editableData?.painPoints).length > 0 ? (
+      safeList(editableData?.painPoints).map((item, i) => (
         <p key={i}>• {item}</p>
       ))
     ) : (
@@ -299,8 +472,8 @@ setInsights(insightsPart);
   <div className="summary-box">
     <h3>Needs</h3>
 
-    {activeInterviewee.parsed.needs?.length > 0 ? (
-      activeInterviewee.parsed.needs.map((item, i) => (
+    {safeList(editableData?.needs).length > 0 ? (
+      safeList(editableData?.needs).map((item, i) => (
         <p key={i}>• {item}</p>
       ))
     ) : (
@@ -351,12 +524,13 @@ setInsights(insightsPart);
 .summary-box {
   margin-top: 12px;
   padding: 14px;
-  background: #f9fafb;
-  border-left: 4px solid #7c3aed;
-  border-radius: 6px;
+  background: #ffffff;
+  border: 1px solid #d8e0ea;
+  border-radius: 12px;
   font-size: 14px;
-  color: #374151;
+  color: #1f2937;
   line-height: 1.5;
+  box-shadow: 0 8px 26px rgba(15, 23, 42, 0.06);
 }
 
 /* Hover */
@@ -366,161 +540,140 @@ setInsights(insightsPart);
 
 /* Active tab (VIOLET THEME) */
 .tab.active {
-  background: linear-gradient(135deg, #7c3aed, #8b5cf6);
+  background: linear-gradient(135deg, #1e3a8a, #2563eb);
   color: white;
   font-weight: 600;
   box-shadow: 0 -2px 6px rgba(0,0,0,0.1);
 }
-  
-       .empathy-map {
-  position: relative;
-  width: 100%;
-  min-height: 700px;
-  background: #f9fafb;
-  margin-top: 20px;
-  border: 2px solid #ddd;
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  grid-template-rows: 1fr 1fr;
-  gap: 30px;
-  padding: 50px;
-  box-sizing: border-box;
-}
 
-/* CENTER CIRCLE */
-.center {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  width: 130px;
-  height: 130px;
-  border-radius: 50%;
-  background: linear-gradient(135deg, #7c3aed, #8b5cf6);
-  color: white;
+.empathy-actions {
+  margin-top: 14px;
   display: flex;
-  align-items: center;
-  justify-content: center;
-  font-weight: bold;
-  z-index: 5;
-  text-align: center;
-  padding: 10px;
-}
-  .persona-desc {
-  margin-top: 10px;
-  font-size: 13px;
-  color: #444;
-  max-width: 250px;
-  line-height: 1.4;
-  text-align: center;
-}
-
-/* CROSS LINES */
-.empathy-map::before,
-.empathy-map::after {
-  content: "";
-  position: absolute;
-  background: #bbb;
-  z-index: 1;
-}
-
-.empathy-map::before {
-  width: 2px;
-  height: 100%;
-  left: 50%;
-  top: 0;
-}
-
-.empathy-map::after {
-  height: 2px;
-  width: 100%;
-  top: 50%;
-  left: 0;
-}
-
-/* QUADRANTS */
-.quadrant {
-  padding: 10px;
-  display: flex;
-  flex-direction: column;
-}
-
-/* 🔥 CENTERED HEADINGS */
-.quadrant h3 {
-  text-align: center;
-  font-weight: bold;
-  margin-bottom: 15px;
-  letter-spacing: 1px;
-}
-
-/* GRID POSITIONS */
-.says { grid-column: 1; grid-row: 1; }
-.thinks { grid-column: 2; grid-row: 1; }
-.does { grid-column: 1; grid-row: 2; }
-.feels { grid-column: 2; grid-row: 2; }
-
-/* 🔥 HORIZONTAL CARD LAYOUT */
-.quadrant {
-  display: flex;
-  flex-direction: column;
-}
-
-.quadrant > div {
-  display: flex;
-  flex-wrap: wrap;   /* allows wrapping */
+  justify-content: flex-end;
   gap: 10px;
 }
 
-/* NOTE CARDS */
-.note {
+.action-btn {
+  border: none;
+  border-radius: 10px;
   padding: 10px 14px;
-  border-radius: 8px;
-  color: white;
+  color: #ffffff;
+  font-weight: 600;
   font-size: 13px;
-  max-width: 130px;
-  flex: 0 0 auto;
-
-  /* ✨ LIGHT SHADOW */
-  box-shadow: 0 2px 6px rgba(0,0,0,0.15);
-
-  /* ✨ SMOOTH TRANSITION */
-  transition: all 0.25s ease;
   cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, filter 0.2s ease;
 }
 
-.note:hover {
-  transform: translateY(-4px) scale(1.02);
-
-  /* stronger shadow on hover */
-  box-shadow: 0 8px 18px rgba(0,0,0,0.25);
-
-  /* optional glow effect */
-  filter: brightness(1.05);
+.action-btn:hover {
+  transform: translateY(-1px);
+  filter: brightness(1.04);
 }
 
-/* COLORS */
-.says .note {
-  background: #894bf4;
+.action-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
 }
 
-.thinks .note {
-  background: #c0c4cb;
-  color:black;
+.action-btn.secondary {
+  background: linear-gradient(135deg, #1e3a8a, #2563eb);
+  box-shadow: 0 10px 22px rgba(37, 99, 235, 0.28);
 }
 
-.does .note {
-  // background: linear-gradient(135deg, #7c3aed, #8b5cf6);
-  background: #c0c4cb;;
-  color:black;
+.action-btn.slate {
+  background: linear-gradient(135deg, #111827, #374151);
+  box-shadow: 0 10px 22px rgba(17, 24, 39, 0.28);
 }
 
-.feels .note {
-  background: #894bf4;
+.action-btn.success {
+  background: linear-gradient(135deg, #166534, #16a34a);
+  box-shadow: 0 10px 22px rgba(22, 163, 74, 0.28);
 }
-  .cards {
-  display: flex;
-  flex-wrap: wrap;   /* allows horizontal flow */
-  gap: 10px;
+
+.empathy-shell {
+  margin-top: 12px;
+}
+
+.empathy-heading {
+  margin: 0 0 12px;
+  font-size: 22px;
+  font-weight: 800;
+  letter-spacing: -0.2px;
+  color: #111827;
+}
+
+.table-wrap {
+  overflow-x: auto;
+}
+
+.empathy-table {
+  width: 100%;
+  border-collapse: collapse;
+  overflow: hidden;
+  border-radius: 12px;
+  font-size: 14px;
+  border: 1px solid #dbe3ee;
+}
+
+.empathy-table th {
+  padding: 14px;
+  color: #ffffff;
+  text-align: left;
+  font-weight: 700;
+  letter-spacing: 0.2px;
+}
+
+.dark-col {
+  background: #0f172a;
+}
+
+.grey-col {
+  background: #334155;
+}
+
+.empathy-table td {
+  padding: 14px;
+  border: 1px solid #e5e7eb;
+  vertical-align: top;
+  color: #1f2937;
+  min-width: 220px;
+}
+
+.light-row {
+  background: #f8fbff;
+}
+
+.white-row {
+  background: #ffffff;
+}
+
+.empathy-table tr:hover td {
+  background: #eff6ff;
+  transition: background 0.2s ease;
+}
+
+.cell-input {
+  width: 100%;
+  min-height: 90px;
+  resize: vertical;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  padding: 8px 10px;
+  font: inherit;
+  color: #0f172a;
+  background: #ffffff;
+}
+
+.cell-input:focus {
+  outline: none;
+  border-color: #2563eb;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.16);
+}
+
+@media (max-width: 900px) {
+  .empathy-actions {
+    justify-content: flex-start;
+    flex-wrap: wrap;
+  }
 }
       `}</style>
     </div>

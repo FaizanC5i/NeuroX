@@ -1,5 +1,6 @@
 import { getPool, sql } from "@/lib/db";
 import { NextResponse } from "next/server";
+import { getUserFromRequest } from "@/lib/auth";
 
 export async function GET(request) {
   try {
@@ -257,6 +258,82 @@ ${body}`;
   } catch (error) {
     console.error("PERSONA FETCH ERROR:", error);
 
+    return NextResponse.json(
+      { success: false, error: { message: error.message } },
+      { status: 500 }
+    );
+  }
+}
+
+// PATCH /api/personas
+// Body: { personaId, personaDescription }
+export async function PATCH(request) {
+  try {
+    const sessionUser = await getUserFromRequest(request);
+    if (!sessionUser?.userId) {
+      return NextResponse.json(
+        { success: false, error: { message: "Unauthorized" } },
+        { status: 401 }
+      );
+    }
+
+    const body = await request.json();
+    const personaId = Number(body?.personaId);
+    const personaDescription = String(body?.personaDescription ?? "").trim();
+
+    if (!personaId) {
+      return NextResponse.json(
+        { success: false, error: { message: "personaId is required" } },
+        { status: 400 }
+      );
+    }
+
+    if (!personaDescription) {
+      return NextResponse.json(
+        { success: false, error: { message: "personaDescription is required" } },
+        { status: 400 }
+      );
+    }
+
+    const pool = await getPool();
+
+    const ownershipResult = await pool
+      .request()
+      .input("personaId", sql.Int, personaId)
+      .input("userId", sql.Int, Number(sessionUser.userId))
+      .query(`
+        SELECT p.persona_id
+        FROM personass p
+        INNER JOIN projectss pr ON p.project_id = pr.project_id
+        WHERE p.persona_id = @personaId
+          AND pr.created_by = @userId
+      `);
+
+    if (!ownershipResult.recordset.length) {
+      return NextResponse.json(
+        { success: false, error: { message: "Persona not found" } },
+        { status: 404 }
+      );
+    }
+
+    await pool
+      .request()
+      .input("personaId", sql.Int, personaId)
+      .input("personaDescription", sql.NVarChar(sql.MAX), personaDescription)
+      .query(`
+        UPDATE personass
+        SET persona_description = @personaDescription
+        WHERE persona_id = @personaId
+      `);
+
+    return NextResponse.json({
+      success: true,
+      data: {
+        personaId,
+        personaDescription,
+      },
+    });
+  } catch (error) {
     return NextResponse.json(
       { success: false, error: { message: error.message } },
       { status: 500 }
