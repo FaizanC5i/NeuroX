@@ -458,6 +458,7 @@ export default function DefinePhasePage() {
 
     try {
       const nextCards = {};
+      let sharedProblemStatement = "";
 
       for (const persona of personas) {
         const personaContext = buildPersonaContext(persona, projectName);
@@ -473,12 +474,32 @@ export default function DefinePhasePage() {
           throw new Error(data.error || `Agent failed for ${persona.personaName}`);
         }
 
-        nextCards[persona.personaId] = normalizeAgentCard(data.persona_card || {});
+        const normalizedCard = normalizeAgentCard(data.persona_card || {});
+
+        if (!sharedProblemStatement && String(normalizedCard.problemStatement || "").trim()) {
+          sharedProblemStatement = String(normalizedCard.problemStatement).trim();
+        }
+
+        nextCards[persona.personaId] = normalizedCard;
+      }
+
+      // Keep one canonical problem statement for this generation run.
+      if (sharedProblemStatement) {
+        Object.keys(nextCards).forEach((personaId) => {
+          nextCards[personaId] = {
+            ...nextCards[personaId],
+            problemStatement: sharedProblemStatement,
+          };
+        });
       }
 
       setAgentCardsByPersona(nextCards);
       const current = nextCards[activePersonaId] || nextCards[personas[0]?.personaId] || {};
-      setProblemStatement(current.problemStatement || "");
+      const fallbackProblemStatement =
+        current.problemStatement ||
+        Object.values(nextCards).find((card) => String(card?.problemStatement || "").trim())?.problemStatement ||
+        "";
+      setProblemStatement(fallbackProblemStatement);
       setGenerated(true);
     } catch (err) {
       setError(err.message || "Agent generation failed");
@@ -499,7 +520,9 @@ export default function DefinePhasePage() {
 
   useEffect(() => {
     if (!generated) return;
-    setProblemStatement(agentCardsByPersona?.[activePersonaId]?.problemStatement || "");
+    const activeProblem = agentCardsByPersona?.[activePersonaId]?.problemStatement;
+    const fallbackProblem = Object.values(agentCardsByPersona || {}).find((card) => String(card?.problemStatement || "").trim())?.problemStatement;
+    setProblemStatement(activeProblem || fallbackProblem || "");
   }, [generated, activePersonaId, agentCardsByPersona]);
 
   const hasAnyOutput = useMemo(
@@ -600,7 +623,7 @@ export default function DefinePhasePage() {
 
             {generated ? (
               <div className="space-y-10">
-                <section>
+                <section id="problem-definition-card">
                   <div className="mb-4">
                     <p className="text-xs font-semibold uppercase tracking-widest text-indigo-500">Define Phase · AI-Generated</p>
                     <h2 className="text-2xl font-bold text-gray-900 mt-1">Problem Statement</h2>

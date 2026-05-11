@@ -549,14 +549,9 @@ const [editingSections, setEditingSections] = useState({
                             <svg viewBox="0 0 24 24" fill="none"><path d="M4 20h4l10.2-10.2-4-4L4 16v4z" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round"/><path d="M12.8 7l4 4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/></svg>
                           </button>
                           {isSectionEditing("says") && (
-                            <>
-                              <button className="icon-btn" title="Add" onClick={() => addSectionRow("says")}>
-                                <svg viewBox="0 0 24 24" fill="none"><path d="M12 5v14M5 12h14" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/></svg>
-                              </button>
-                              <button className="icon-btn primary" title="Save" disabled={isSaving || !activeInterviewee?.interviewId} onClick={() => handleSave("says")}>
-                                <svg viewBox="0 0 24 24" fill="none"><path d="M5 12.5l4.2 4.2L19 7" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>
-                              </button>
-                            </>
+                            <button className="icon-btn primary" title="Save" disabled={isSaving || !activeInterviewee?.interviewId} onClick={() => handleSave("says")}>
+                              <svg viewBox="0 0 24 24" fill="none"><path d="M5 12.5l4.2 4.2L19 7" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                            </button>
                           )}
                         </div>
                       </div>
@@ -572,6 +567,9 @@ const [editingSections, setEditingSections] = useState({
                           </li>
                         ))}
                       </ul>
+                      {isSectionEditing("says") && (
+                        <button className="add-row-btn" onClick={() => addSectionRow("says")}>+ Add Row</button>
+                      )}
                     </section>
 
                     <section className="signal-panel signal-col signal-col-4 thinks-tone">
@@ -585,10 +583,7 @@ const [editingSections, setEditingSections] = useState({
                         <div className="section-actions">
                           <button className="icon-btn" title={isSectionEditing("thinks") ? "Cancel" : "Edit"} onClick={() => toggleSectionEditing("thinks")}><svg viewBox="0 0 24 24" fill="none"><path d="M4 20h4l10.2-10.2-4-4L4 16v4z" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round"/><path d="M12.8 7l4 4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/></svg></button>
                           {isSectionEditing("thinks") && (
-                            <>
-                              <button className="icon-btn" title="Add" onClick={() => addSectionRow("thinks")}><svg viewBox="0 0 24 24" fill="none"><path d="M12 5v14M5 12h14" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/></svg></button>
-                              <button className="icon-btn primary" title="Save" disabled={isSaving || !activeInterviewee?.interviewId} onClick={() => handleSave("thinks")}><svg viewBox="0 0 24 24" fill="none"><path d="M5 12.5l4.2 4.2L19 7" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg></button>
-                            </>
+                            <button className="icon-btn primary" title="Save" disabled={isSaving || !activeInterviewee?.interviewId} onClick={() => handleSave("thinks")}><svg viewBox="0 0 24 24" fill="none"><path d="M5 12.5l4.2 4.2L19 7" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg></button>
                           )}
                         </div>
                       </div>
@@ -604,6 +599,9 @@ const [editingSections, setEditingSections] = useState({
                           </li>
                         ))}
                       </ul>
+                      {isSectionEditing("thinks") && (
+                        <button className="add-row-btn" onClick={() => addSectionRow("thinks")}>+ Add Row</button>
+                      )}
                     </section>
 
                     <section className="signal-panel signal-col signal-col-4 does-tone">
@@ -617,10 +615,7 @@ const [editingSections, setEditingSections] = useState({
                         <div className="section-actions">
                           <button className="icon-btn" title={isSectionEditing("does") ? "Cancel" : "Edit"} onClick={() => toggleSectionEditing("does")}><svg viewBox="0 0 24 24" fill="none"><path d="M4 20h4l10.2-10.2-4-4L4 16v4z" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round"/><path d="M12.8 7l4 4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/></svg></button>
                           {isSectionEditing("does") && (
-                            <>
-                              <button className="icon-btn" title="Add" onClick={() => addSectionRow("does")}><svg viewBox="0 0 24 24" fill="none"><path d="M12 5v14M5 12h14" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/></svg></button>
-                              <button className="icon-btn primary" title="Save" disabled={isSaving || !activeInterviewee?.interviewId} onClick={() => handleSave("does")}><svg viewBox="0 0 24 24" fill="none"><path d="M5 12.5l4.2 4.2L19 7" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg></button>
-                            </>
+                            <button className="icon-btn primary" title="Save" disabled={isSaving || !activeInterviewee?.interviewId} onClick={() => handleSave("does")}><svg viewBox="0 0 24 24" fill="none"><path d="M5 12.5l4.2 4.2L19 7" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg></button>
                           )}
                         </div>
                       </div>
@@ -636,6 +631,9 @@ const [editingSections, setEditingSections] = useState({
                           </li>
                         ))}
                       </ul>
+                      {isSectionEditing("does") && (
+                        <button className="add-row-btn" onClick={() => addSectionRow("does")}>+ Add Row</button>
+                      )}
                     </section>
 
                     <section className="signal-panel signal-col signal-col-4 feels-tone">
@@ -649,10 +647,7 @@ const [editingSections, setEditingSections] = useState({
                         <div className="section-actions">
                           <button className="icon-btn" title={isSectionEditing("feels") ? "Cancel" : "Edit"} onClick={() => toggleSectionEditing("feels")}><svg viewBox="0 0 24 24" fill="none"><path d="M4 20h4l10.2-10.2-4-4L4 16v4z" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round"/><path d="M12.8 7l4 4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/></svg></button>
                           {isSectionEditing("feels") && (
-                            <>
-                              <button className="icon-btn" title="Add" onClick={() => addSectionRow("feels")}><svg viewBox="0 0 24 24" fill="none"><path d="M12 5v14M5 12h14" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/></svg></button>
-                              <button className="icon-btn primary" title="Save" disabled={isSaving || !activeInterviewee?.interviewId} onClick={() => handleSave("feels")}><svg viewBox="0 0 24 24" fill="none"><path d="M5 12.5l4.2 4.2L19 7" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg></button>
-                            </>
+                            <button className="icon-btn primary" title="Save" disabled={isSaving || !activeInterviewee?.interviewId} onClick={() => handleSave("feels")}><svg viewBox="0 0 24 24" fill="none"><path d="M5 12.5l4.2 4.2L19 7" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg></button>
                           )}
                         </div>
                       </div>
@@ -668,6 +663,9 @@ const [editingSections, setEditingSections] = useState({
                           </li>
                         ))}
                       </ul>
+                      {isSectionEditing("feels") && (
+                        <button className="add-row-btn" onClick={() => addSectionRow("feels")}>+ Add Row</button>
+                      )}
                     </section>
                   </div>
                 </div>
@@ -702,10 +700,7 @@ const [editingSections, setEditingSections] = useState({
                         <span className="signal-chip">{safeList(editableData?.painPoints).length} items</span>
                         <button className="icon-btn" title={isSectionEditing("painPoints") ? "Cancel" : "Edit"} onClick={() => toggleSectionEditing("painPoints")}><svg viewBox="0 0 24 24" fill="none"><path d="M4 20h4l10.2-10.2-4-4L4 16v4z" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round"/><path d="M12.8 7l4 4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/></svg></button>
                         {isSectionEditing("painPoints") && (
-                          <>
-                            <button className="icon-btn" title="Add" onClick={() => addSectionRow("painPoints")}><svg viewBox="0 0 24 24" fill="none"><path d="M12 5v14M5 12h14" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/></svg></button>
-                            <button className="icon-btn primary" title="Save" disabled={isSaving || !activeInterviewee?.interviewId} onClick={() => handleSave("painPoints")}><svg viewBox="0 0 24 24" fill="none"><path d="M5 12.5l4.2 4.2L19 7" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg></button>
-                          </>
+                          <button className="icon-btn primary" title="Save" disabled={isSaving || !activeInterviewee?.interviewId} onClick={() => handleSave("painPoints")}><svg viewBox="0 0 24 24" fill="none"><path d="M5 12.5l4.2 4.2L19 7" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg></button>
                         )}
                       </div>
         </div>
@@ -725,6 +720,9 @@ const [editingSections, setEditingSections] = useState({
             </li>
           ))}
         </ul>
+        {isSectionEditing("painPoints") && (
+          <button className="add-row-btn" onClick={() => addSectionRow("painPoints")}>+ Add Row</button>
+        )}
       </section>
 
       <section className="signal-panel signal-col needs">
@@ -743,10 +741,7 @@ const [editingSections, setEditingSections] = useState({
             <span className="signal-chip">{safeList(editableData?.needs).length} items</span>
             <button className="icon-btn" title={isSectionEditing("needs") ? "Cancel" : "Edit"} onClick={() => toggleSectionEditing("needs")}><svg viewBox="0 0 24 24" fill="none"><path d="M4 20h4l10.2-10.2-4-4L4 16v4z" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round"/><path d="M12.8 7l4 4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/></svg></button>
             {isSectionEditing("needs") && (
-              <>
-                <button className="icon-btn" title="Add" onClick={() => addSectionRow("needs")}><svg viewBox="0 0 24 24" fill="none"><path d="M12 5v14M5 12h14" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/></svg></button>
-                <button className="icon-btn primary" title="Save" disabled={isSaving || !activeInterviewee?.interviewId} onClick={() => handleSave("needs")}><svg viewBox="0 0 24 24" fill="none"><path d="M5 12.5l4.2 4.2L19 7" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg></button>
-              </>
+              <button className="icon-btn primary" title="Save" disabled={isSaving || !activeInterviewee?.interviewId} onClick={() => handleSave("needs")}><svg viewBox="0 0 24 24" fill="none"><path d="M5 12.5l4.2 4.2L19 7" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg></button>
             )}
           </div>
         </div>
@@ -766,6 +761,9 @@ const [editingSections, setEditingSections] = useState({
             </li>
           ))}
         </ul>
+        {isSectionEditing("needs") && (
+          <button className="add-row-btn" onClick={() => addSectionRow("needs")}>+ Add Row</button>
+        )}
       </section>
 
       <section className="signal-panel signal-col insights">
@@ -783,10 +781,7 @@ const [editingSections, setEditingSections] = useState({
             <span className="signal-chip">{safeList(editableInsights).length} items</span>
             <button className="icon-btn" title={isSectionEditing("keyInsights") ? "Cancel" : "Edit"} onClick={() => toggleSectionEditing("keyInsights")}><svg viewBox="0 0 24 24" fill="none"><path d="M4 20h4l10.2-10.2-4-4L4 16v4z" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round"/><path d="M12.8 7l4 4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/></svg></button>
             {isSectionEditing("keyInsights") && (
-              <>
-                <button className="icon-btn" title="Add" onClick={() => addSectionRow("keyInsights")}><svg viewBox="0 0 24 24" fill="none"><path d="M12 5v14M5 12h14" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/></svg></button>
-                <button className="icon-btn primary" title="Save" disabled={isSaving || !activeInterviewee?.interviewId} onClick={() => handleSave("keyInsights")}><svg viewBox="0 0 24 24" fill="none"><path d="M5 12.5l4.2 4.2L19 7" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg></button>
-              </>
+              <button className="icon-btn primary" title="Save" disabled={isSaving || !activeInterviewee?.interviewId} onClick={() => handleSave("keyInsights")}><svg viewBox="0 0 24 24" fill="none"><path d="M5 12.5l4.2 4.2L19 7" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg></button>
             )}
           </div>
         </div>
@@ -806,10 +801,22 @@ const [editingSections, setEditingSections] = useState({
             </li>
           ))}
         </ul>
+        {isSectionEditing("keyInsights") && (
+          <button className="add-row-btn" onClick={() => addSectionRow("keyInsights")}>+ Add Row</button>
+        )}
       </section>
     </div>
   </div>
 )}
+      <div className="bottom-nav-wrap">
+        <button
+          className="go-define-btn"
+          onClick={() => router.push(`/projects/${encodeURIComponent(projectId)}/define#problem-definition-card`)}
+          disabled={!projectId}
+        >
+          Go to Define Stage Problem Definition
+        </button>
+      </div>
       <style jsx>{`
 
       .page-title {
@@ -1260,6 +1267,27 @@ const [editingSections, setEditingSections] = useState({
   box-shadow: none;
 }
 
+.add-row-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 10px;
+  padding: 6px 14px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #2563eb;
+  background: #eff6ff;
+  border: 1px dashed #93c5fd;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.add-row-btn:hover {
+  background: #dbeafe;
+  border-color: #3b82f6;
+}
+
 .signal-chip {
   font-size: 12px;
   line-height: 1;
@@ -1368,6 +1396,37 @@ const [editingSections, setEditingSections] = useState({
   box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.16);
 }
 
+.bottom-nav-wrap {
+  margin-top: 20px;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.go-define-btn {
+  border: none;
+  border-radius: 10px;
+  padding: 10px 16px;
+  color: #ffffff;
+  font-weight: 600;
+  font-size: 13px;
+  cursor: pointer;
+  background: linear-gradient(135deg, #1e3a8a, #2563eb);
+  box-shadow: 0 10px 22px rgba(37, 99, 235, 0.28);
+  transition: transform 0.2s ease, box-shadow 0.2s ease, filter 0.2s ease;
+}
+
+.go-define-btn:hover {
+  transform: translateY(-1px);
+  filter: brightness(1.04);
+}
+
+.go-define-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+  transform: none;
+  box-shadow: none;
+}
+
 @keyframes strategic-fade-in {
   from {
     opacity: 0;
@@ -1415,6 +1474,14 @@ const [editingSections, setEditingSections] = useState({
 
   .signal-col-4 {
     grid-column: span 12;
+  }
+
+  .bottom-nav-wrap {
+    justify-content: stretch;
+  }
+
+  .go-define-btn {
+    width: 100%;
   }
 }
       `}</style>

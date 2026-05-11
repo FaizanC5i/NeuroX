@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import {
   AlignmentType,
@@ -39,7 +39,6 @@ export default function EmpathyMapPage() {
   const [personaOutput, setPersonaOutput] = useState("");
   const [personaStatus, setPersonaStatus] = useState(""); // "generating" | "ready" | "error" | ""
   const [personaError, setPersonaError] = useState("");
-  const transcriptRef = useRef(null);
 
   const [form, setForm] = useState({
     name: "",
@@ -270,12 +269,6 @@ export default function EmpathyMapPage() {
     setPersonaStatus("");
     setSaveStatus("");
   }, [selectedInterviewee?.interviewee_id, questionSets]);
-
-  useEffect(() => {
-    if (!transcriptRef.current || !isEditingTranscript) return;
-    transcriptRef.current.style.height = "auto";
-    transcriptRef.current.style.height = `${Math.max(transcriptRef.current.scrollHeight, 240)}px`;
-  }, [transcriptDraft, isEditingTranscript]);
 
   const handleSubmitTranscript = async () => {
     const interviewId = questionSets[0]?.interviewId;
@@ -915,14 +908,13 @@ export default function EmpathyMapPage() {
                     {isEditingTranscript ? (
                       <>
                         <textarea
-                          ref={transcriptRef}
                           value={transcriptDraft}
                           onChange={(e) => {
                             setTranscriptDraft(e.target.value);
                             setSaveStatus("");
                           }}
                           placeholder={"Write your answers like:\nQ1: ...\nQ2: ...\nQ3: ..."}
-                          className="min-h-[240px] w-full resize-none rounded-xl border border-gray-300 bg-white px-4 py-4 font-mono text-sm leading-7 text-gray-800 shadow-sm outline-none transition placeholder:text-gray-400 hover:border-gray-400 focus:border-indigo-500 focus:ring-4 focus:ring-indigo-100"
+                          className="h-[320px] w-full resize-none overflow-y-auto rounded-xl border border-gray-300 bg-white px-4 py-4 font-mono text-sm leading-7 text-gray-800 shadow-sm outline-none transition placeholder:text-gray-400 hover:border-gray-400 focus:border-indigo-500 focus:ring-4 focus:ring-indigo-100"
                         />
                         <div className="mt-3 flex justify-end gap-2">
                           <button
@@ -945,7 +937,7 @@ export default function EmpathyMapPage() {
                         </div>
                       </>
                     ) : (
-                      <div className="min-h-[240px] w-full whitespace-pre-wrap rounded-xl border border-gray-300 bg-white px-4 py-4 font-mono text-sm leading-7 text-gray-800 shadow-sm">
+                      <div className="h-[320px] w-full overflow-y-auto whitespace-pre-wrap rounded-xl border border-gray-300 bg-white px-4 py-4 font-mono text-sm leading-7 text-gray-800 shadow-sm">
                         {transcript?.trim() ? transcript : "No transcript submitted yet."}
                       </div>
                     )}
@@ -993,7 +985,7 @@ export default function EmpathyMapPage() {
                     </p>
                   )}
 
-                  <div className="rounded-xl border border-gray-300 bg-white px-4 py-4 text-sm leading-7 text-gray-800 shadow-sm whitespace-pre-wrap">
+                  <div className="h-[320px] overflow-y-auto rounded-xl border border-gray-300 bg-white px-4 py-4 text-sm leading-7 text-gray-800 shadow-sm whitespace-pre-wrap">
                     {personaOutput || "No persona output generated yet for this interview."}
                   </div>
 
