@@ -3,9 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 
-/* ===========================
-   SAFE PARSER (UPDATED)
-=========================== */
+
 function parsePersonaOutput(rawOutput, fallbackName) {
   const normalized = String(rawOutput || "").replace(/\r\n/g, "\n").trim();
 
@@ -923,10 +921,14 @@ const [editingSections, setEditingSections] = useState({
 
 /* Active tab (VIOLET THEME) */
 .tab.active {
-  background: linear-gradient(135deg, #1e3a8a, #2563eb);
+  background: #702dff;
   color: white;
   font-weight: 600;
   box-shadow: 0 -2px 6px rgba(0,0,0,0.1);
+}
+
+.tab.active:hover {
+  background: #5a24cc;
 }
 
 .empathy-actions {

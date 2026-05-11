@@ -471,9 +471,9 @@ export default function ProjectDetailPage() {
           <button
   onClick={(e) => {
   e.stopPropagation();
-  router.push(`/final-persona?projectId=${projectId}`);
+  router.push(`/projects/${projectId}/define`);
 }}
-  className="mt-4 inline-flex items-center gap-2 text-sm font-medium text-white underline decoration-white/40 underline-offset-4"
+  className="mt-4 inline-flex items-center gap-2 text-sm font-medium text-white underline decoration-white/40 underline-offset-4 transition hover:decoration-white"
 >
   Define →
 </button>
