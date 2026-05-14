@@ -339,23 +339,59 @@ try {
     // PARSE IA_JSON IF STRING
     // -------------------------------------
     if (
-      typeof iaData?.IA_JSON === "string"
-    ) {
+  typeof iaData?.IA_JSON === "string"
+) {
 
-      try {
+  try {
 
-        iaData.IA_JSON = JSON.parse(
-          iaData.IA_JSON
-        );
+    iaData.IA_JSON = JSON.parse(
+      iaData.IA_JSON
+    );
 
-      } catch (err) {
+  } catch (err) {
 
-        console.error(
-          "Failed parsing IA_JSON"
-        );
-      }
+    console.error(
+      "Failed parsing IA_JSON"
+    );
+  }
+}
+
+function fixChildren(node) {
+
+  if (!node) return node;
+
+  if (
+    typeof node.children === "string"
+  ) {
+
+    try {
+
+      node.children = JSON.parse(
+        node.children
+      );
+
+    } catch {
+
+      node.children = [];
     }
+  }
 
+  if (Array.isArray(node.children)) {
+
+    node.children =
+      node.children.map(fixChildren);
+
+  } else {
+
+    node.children = [];
+  }
+
+  return node;
+}
+
+iaData.IA_JSON = fixChildren(
+  iaData.IA_JSON
+);
     // -------------------------------------
     // SUCCESS
     // -------------------------------------

@@ -43,7 +43,10 @@ export default function InformationArchitecturePage() {
   // -----------------------------------------
   // CREATE FLOW NODES + EDGES
   // -----------------------------------------
-
+console.log(
+  "IA JSON",
+  iaData?.IA_JSON
+);
   const nodes = [];
 const edges = [];
 
