@@ -811,8 +811,20 @@ const [editingSections, setEditingSections] = useState({
       <div className="bottom-nav-wrap">
         <button
           className="go-define-btn"
-          onClick={() => router.push(`/projects/${encodeURIComponent(projectId)}/define#problem-definition-card`)}
           disabled={!projectId}
+          onClick={async () => {
+            if (!projectId) return;
+            try {
+              await fetch(`/api/projects/${projectId}/progress`, {
+                method: "PUT",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ stage: "empathize", progress: 100 }),
+              });
+            } catch (e) {
+              console.error("Failed to update empathize progress", e);
+            }
+            router.push(`/projects/${encodeURIComponent(projectId)}/define#problem-definition-card`);
+          }}
         >
           Go to Define Stage Problem Definition
         </button>

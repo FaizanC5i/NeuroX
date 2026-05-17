@@ -1,13 +1,15 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import UXJourneyFlow from "@/components/UXJourneyFlow";
 import { toPng } from "html-to-image";
 import jsPDF from "jspdf";
 
 export default function ProcessFlowPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const projectId = searchParams.get("projectId");
 
   const [flowData, setFlowData] = useState(null);
 
@@ -63,11 +65,19 @@ export default function ProcessFlowPage() {
 
   useEffect(() => {
     const stored = sessionStorage.getItem("processFlowData");
-
     if (stored) {
       setFlowData(JSON.parse(stored));
+      // Mark define stage complete
+      if (projectId) {
+        fetch(`/api/projects/${projectId}/progress`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ stage: "define", progress: 100 }),
+        }).then(() => window.dispatchEvent(new Event("neurox:progress-updated")))
+          .catch(() => {});
+      }
     }
-  }, []);
+  }, [projectId]);
 
   return (
     <div className="min-h-screen bg-[#f8fafc] p-8">
@@ -109,7 +119,13 @@ export default function ProcessFlowPage() {
   </div>
 </div>
 
-    <div className="mt-6 flex justify-end">
+    <div className="mt-6 flex justify-end gap-3">
+      <button
+        onClick={() => router.push(`/information-architecture?projectId=${projectId}`)}
+        className="px-5 py-2.5 rounded-xl font-semibold transition border border-[#702dff] text-[#702dff] hover:bg-[#702dff] hover:text-white"
+      >
+        Generate IA
+      </button>
       <button
         onClick={handleDownload}
         className="px-5 py-2.5 rounded-xl text-white font-semibold transition"

@@ -15,7 +15,11 @@ import { useMemo } from "react";
 export default function AppShell({ children }) {
   const router = useRouter();
   const pathname = usePathname();
-  const projectId = pathname.split("/projects/")[1]?.split("/")[0];
+  const _pathProjectId = pathname.split("/projects/")[1]?.split("/")[0];
+  const _searchProjectId = typeof window !== "undefined"
+    ? new URLSearchParams(window.location.search).get("projectId")
+    : null;
+  const projectId = _pathProjectId || _searchProjectId || null;
 
   const [userId, setUserId] = useState("");
   const [userPersona, setUserPersona] = useState("designer");
@@ -39,7 +43,7 @@ export default function AppShell({ children }) {
   const {
     updateProject,
     refetch: refetchProjects,
-  } = useProjects(userId);
+  } = useProjects(userId, { requireUserId: false });
 
   // Restore session from secure auth cookie
   useEffect(() => {
@@ -120,6 +124,10 @@ if (data?.success) {
   };
 
   fetchProjectProgress();
+
+  const handler = () => fetchProjectProgress();
+  window.addEventListener('neurox:progress-updated', handler);
+  return () => window.removeEventListener('neurox:progress-updated', handler);
 }, [projectId, pathname]);
 
   const handleLogout = async () => {
@@ -206,7 +214,7 @@ if (data?.success) {
   projectProgressData={projectProgressData}
 />
 
-        <div className="min-w-0 max-w-full overflow-x-hidden">{children}</div>
+        <div className="min-w-0 max-w-full overflow-x-hidden pt-[73px]">{children}</div>
       </div>
 
       <CreateProjectModal

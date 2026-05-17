@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { ArrowLeft, Minus, Plus, RotateCcw } from "lucide-react";
 import jsPDF from "jspdf";
 import html2canvas from "html2canvas";
@@ -330,13 +330,24 @@ export default function InformationArchitecturePage() {
   const [viewportWidth, setViewportWidth] = useState(0);
   const viewportRef = useRef(null);
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const projectId = searchParams.get("projectId");
 
   useEffect(() => {
     const stored = sessionStorage.getItem("informationArchitectureData");
     if (stored) {
       setIaData(JSON.parse(stored));
+      // Mark ideate stage complete
+      if (projectId) {
+        fetch(`/api/projects/${projectId}/progress`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ stage: "ideate", progress: 100 }),
+        }).then(() => window.dispatchEvent(new Event("neurox:progress-updated")))
+          .catch(() => {});
+      }
     }
-  }, []);
+  }, [projectId]);
 
   const stats = useMemo(() => {
     if (!iaData?.IA_JSON) {
@@ -404,87 +415,55 @@ export default function InformationArchitecturePage() {
   }
 
   const handleDownloadIA = async () => {
-  const element = document.getElementById("ia-diagram");
+    if (!diagram.nodes.length) return;
+    try {
+      // Build a hidden full-size container at zoom=1 for capture
+      const wrapper = document.createElement("div");
+      wrapper.style.cssText = `position:fixed;left:-99999px;top:0;width:${diagram.width}px;height:${diagram.height}px;background:#fff;overflow:visible;`;
 
-  if (!element) return;
+      const svgEl = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+      svgEl.setAttribute("viewBox", `0 0 ${diagram.width} ${diagram.height}`);
+      svgEl.setAttribute("width", String(diagram.width));
+      svgEl.setAttribute("height", String(diagram.height));
 
-  try {
-    const clonedElement = element.cloneNode(true);
-
-    clonedElement.style.background = "#ffffff";
-    clonedElement.style.color = "#000000";
-
-    // Remove problematic styles
-    const all = clonedElement.querySelectorAll("*");
-
-    all.forEach((el) => {
-      el.style.backdropFilter = "none";
-      el.style.filter = "none";
-
-      const computed = window.getComputedStyle(el);
-
-      if (
-        computed.backgroundColor.includes("oklch") ||
-        computed.backgroundColor.includes("oklab")
-      ) {
-        el.style.backgroundColor = "#ffffff";
+      // Copy the rendered SVG content from the page
+      const sourceSvg = document.querySelector("#ia-diagram svg");
+      if (sourceSvg) {
+        svgEl.innerHTML = sourceSvg.innerHTML;
       }
+      wrapper.appendChild(svgEl);
+      document.body.appendChild(wrapper);
 
-      if (
-        computed.color.includes("oklch") ||
-        computed.color.includes("oklab")
-      ) {
-        el.style.color = "#000000";
-      }
+      const canvas = await html2canvas(wrapper, {
+        scale: 2,
+        useCORS: true,
+        backgroundColor: "#ffffff",
+        width: diagram.width,
+        height: diagram.height,
+        onclone: (doc) => {
+          doc.querySelectorAll("*").forEach((el) => {
+            const cs = window.getComputedStyle(el);
+            if (cs.backgroundColor.includes("oklch")) el.style.backgroundColor = "#ffffff";
+            if (cs.color.includes("oklch")) el.style.color = "#000000";
+            if (cs.borderColor.includes("oklch")) el.style.borderColor = "#cbd5e1";
+          });
+        },
+      });
 
-      if (
-        computed.borderColor.includes("oklch") ||
-        computed.borderColor.includes("oklab")
-      ) {
-        el.style.borderColor = "#cbd5e1";
-      }
-    });
+      document.body.removeChild(wrapper);
 
-    // Add cloned element temporarily
-    clonedElement.style.position = "fixed";
-    clonedElement.style.left = "-99999px";
-    clonedElement.style.top = "0";
-
-    document.body.appendChild(clonedElement);
-
-    const canvas = await html2canvas(clonedElement, {
-      scale: 2,
-      useCORS: true,
-      backgroundColor: "#ffffff",
-    });
-
-    document.body.removeChild(clonedElement);
-
-    const imgData = canvas.toDataURL("image/png");
-
-    const pdf = new jsPDF({
-      orientation:
-        canvas.width > canvas.height
-          ? "landscape"
-          : "portrait",
-      unit: "px",
-      format: [canvas.width, canvas.height],
-    });
-
-    pdf.addImage(
-      imgData,
-      "PNG",
-      0,
-      0,
-      canvas.width,
-      canvas.height
-    );
-
-    pdf.save("information-architecture.pdf");
-  } catch (err) {
-    console.error("PDF download failed:", err);
-  }
-};
+      const imgData = canvas.toDataURL("image/png");
+      const pdf = new jsPDF({
+        orientation: canvas.width > canvas.height ? "landscape" : "portrait",
+        unit: "px",
+        format: [canvas.width, canvas.height],
+      });
+      pdf.addImage(imgData, "PNG", 0, 0, canvas.width, canvas.height);
+      pdf.save("information-architecture.pdf");
+    } catch (err) {
+      console.error("PDF download failed:", err);
+    }
+  };
 
   return (
 <div className="min-h-screen bg-slate-100 p-4 md:p-6">      <div className="mb-6 flex items-center gap-4">
@@ -573,7 +552,7 @@ export default function InformationArchitecturePage() {
           <div
             id="ia-diagram"
             ref={viewportRef}
-className="overflow-visible rounded-2xl border border-slate-200 bg-white p-4 shadow-inner"          >
+className="rounded-2xl border border-slate-200 bg-white p-4 shadow-inner" style={{ height: "70vh", overflow: "scroll" }}          >
             <ArchitectureDiagram diagram={diagram} zoom={effectiveZoom} />
           </div>
         </div>

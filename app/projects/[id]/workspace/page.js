@@ -507,7 +507,7 @@ if (questionSets.length === 0) {
   };
 
   return (
-    <div className="p-8 bg-white min-h-screen">
+    <div className="bg-white min-h-screen">
 
       {/* Persona Tabs */}
       <div className="mb-4 border-b border-gray-200 pb-2">
@@ -1016,11 +1016,16 @@ if (questionSets.length === 0) {
                         Download Persona Report
                       </button>
                       <button
-                        onClick={() =>
-                          router.push(
-                            `/view-persona?projectId=${encodeURIComponent(projectId)}&projectName=${encodeURIComponent(projectName)}`
-                          )
-                        }
+                        onClick={async () => {
+                          try {
+                            await fetch(`/api/projects/${projectId}/progress`, {
+                              method: "PUT",
+                              headers: { "Content-Type": "application/json" },
+                              body: JSON.stringify({ stage: "empathize", progress: 100 }),
+                            });
+                          } catch (_) {}
+                          router.push(`/view-persona?projectId=${encodeURIComponent(projectId)}&projectName=${encodeURIComponent(projectName)}`);
+                        }}
                         className="inline-flex items-center justify-center rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-indigo-700"
                       >
                         Generate Empathy Map

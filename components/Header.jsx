@@ -42,7 +42,10 @@ export default function Header({
     pathname === "/dashboard";
 
   const isProjectPage =
-    pathname.includes("/projects/");
+    pathname.includes("/projects/") ||
+    pathname.includes("/view-persona") ||
+    pathname.includes("/process-flow") ||
+    pathname.includes("/information-architecture");
 
   // FALLBACK STATIC DATA
   // Later replace using backend API data
@@ -60,14 +63,14 @@ export default function Header({
   const completedStages =
     projectProgressData?.completedStages || [];
 
-  const progress =
-    projectProgressData?.progress || 0;
+  const rawProgress = projectProgressData?.progress || 0;
+  const pct = Math.min(100, Math.round((rawProgress / 500) * 100));
 
   const currentStage =
     projectProgressData?.currentStage || "Empathize";
 
   return (
-    <header className="bg-white border-b border-[#e5e7eb] px-8 py-4 sticky top-0 z-10">
+    <header className="bg-white border-b border-[#e5e7eb] px-8 py-4 fixed top-0 left-[240px] right-0 z-20">
       <div className="flex items-center justify-between gap-6">
         
         {/* LEFT SECTION */}
@@ -75,83 +78,35 @@ export default function Header({
           
           {/* PROJECT WORKFLOW */}
           {isProjectPage ? (
-            <div className="w-full max-w-5xl">
-              
-              {/* TOP SECTION */}
-              <div className="flex items-center justify-between mb-2">
-                <p className="text-sm font-medium text-gray-700">
-                  Project Workflow
-                </p>
-
-                <p className="text-sm font-semibold text-[#702dff]">
-                  {Math.round(progress)}% Complete
-                </p>
-              </div>
-
-              {/* PROGRESS BAR */}
-              <div className="relative">
-                
-                {/* BACKGROUND LINE */}
-                <div className="absolute top-4 left-0 w-full h-[3px] bg-gray-200 rounded-full" />
-
-                {/* ACTIVE LINE */}
+            <div className="w-full max-w-4xl flex items-center gap-3">
+              {/* STAGES */}
+              <div className="relative flex-1">
+                <div className="absolute top-3 left-0 w-full h-[2px] bg-gray-200 rounded-full" />
                 <div
-                  className="absolute top-4 left-0 h-[3px] bg-[#702dff] rounded-full transition-all duration-500"
-                  style={{
-                    width: `${progress}%`,
-                  }}
+                  className="absolute top-3 left-0 h-[2px] bg-[#702dff] rounded-full transition-all duration-500"
+                  style={{ width: `${pct}%` }}
                 />
-
-                {/* STAGES */}
                 <div className="relative flex justify-between">
                   {stages.map((stage, index) => {
-                   const currentStageIndex =
-  stages.indexOf(currentStage);
-
-const stageIndex = index;
-
-const isCompleted =
-  completedStages.includes(stage);
-
-const isActive =
-  stageIndex === currentStageIndex;
-
+                    const isCompleted = completedStages.includes(stage);
+                    const isActive = stages.indexOf(currentStage) === index;
                     return (
-                      <div
-                        key={stage}
-                        className="flex flex-col items-center min-w-[90px]"
-                      >
-                        {/* STAGE CIRCLE */}
-                        <div
-                         className={`w-8 h-8 rounded-full border-2 flex items-center justify-center text-xs font-semibold transition-all
-${
-  isCompleted
-    ? "bg-[#702dff] border-[#702dff] text-white"
-    : isActive
-      ? "bg-indigo-100 border-[#702dff] text-[#702dff]"
-      : "bg-white border-gray-300 text-gray-500"
-}`}
-                        >
-                          {index + 1}
-                        </div>
-
-                        {/* STAGE LABEL */}
-                        <p
-                         className={`mt-2 text-xs text-center font-medium ${
-  isCompleted
-    ? "text-[#702dff]"
-    : isActive
-      ? "text-indigo-600"
-      : "text-gray-500"
-}`}
-                        >
-                          {stage}
-                        </p>
+                      <div key={stage} className="flex flex-col items-center min-w-[60px]">
+                        <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center text-[10px] font-semibold transition-all ${
+                          isCompleted ? "bg-[#702dff] border-[#702dff] text-white"
+                          : isActive ? "bg-indigo-100 border-[#702dff] text-[#702dff]"
+                          : "bg-white border-gray-300 text-gray-400"
+                        }`}>{index + 1}</div>
+                        <p className={`mt-1 text-[10px] text-center font-medium ${
+                          isCompleted ? "text-[#702dff]" : isActive ? "text-indigo-600" : "text-gray-400"
+                        }`}>{stage}</p>
                       </div>
                     );
                   })}
                 </div>
               </div>
+              {/* PCT */}
+              <span className="text-xs font-semibold text-[#702dff] whitespace-nowrap">{pct}%</span>
             </div>
           ) : (
             /* DASHBOARD SEARCH BAR */

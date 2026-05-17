@@ -24,7 +24,7 @@ export default function ProjectsPage() {
     error,
     deleteProject,
     deleteLoading,
-  } = useProjects(userId);
+  } = useProjects(userId, { requireUserId: false });
 
   useEffect(() => {
     const hydrate = async () => {

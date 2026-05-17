@@ -547,6 +547,16 @@ await fetch("/api/save-generated-persona", {
         "";
       setProblemStatement(fallbackProblemStatement);
       setGenerated(true);
+
+      // Update define progress to 50 → overall = empathize(100)+define(50) = 150/500 = 30%
+      try {
+        await fetch(`/api/projects/${projectId}/progress`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ stage: "define", progress: 50 }),
+        });
+        window.dispatchEvent(new Event('neurox:progress-updated'));
+      } catch (_) {}
     } catch (err) {
       setError(err.message || "Agent generation failed");
     } finally {
@@ -796,7 +806,13 @@ await fetch("/api/save-generated-persona", {
       />
     </div>
 
-    <div className="mt-5 flex justify-end">
+    <div className="mt-5 flex justify-end gap-3">
+      <button
+        onClick={() => router.push(`/process-flow?projectId=${projectId}`)}
+        className="px-5 py-2.5 rounded-xl font-semibold transition border border-[#702dff] text-[#702dff] hover:bg-[#702dff] hover:text-white"
+      >
+        Generate Process Flow
+      </button>
       <button
         onClick={handleDownloadPDF}
         className="px-5 py-2.5 rounded-xl text-white font-semibold transition"

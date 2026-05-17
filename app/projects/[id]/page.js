@@ -134,6 +134,13 @@ const [informationArchitectureError, setInformationArchitectureError] = useState
 
   useEffect(() => {
     fetchProject();
+    fetch(`/api/projects/${projectId}/progress`)
+      .then((r) => r.json())
+      .then((res) => {
+        if (res.success)
+          setCompletedStages((res.data.completedStages || []).map((s) => s.toLowerCase()));
+      })
+      .catch(() => {});
   }, [projectId]);
 
   const fetchProject = async () => {
@@ -797,19 +804,7 @@ const renderIdeateTemplateCard = (template) => {
   {!showFullDesc && "..."}
 </p>
             {/* ✅ PROGRESS BAR */}
-<div className="mt-6">
-  <div className="flex justify-between text-sm mb-1">
-    <span className="text-gray-600">Project Progress</span>
-    <span className="font-medium text-gray-900">{getProgress()}%</span>
-  </div>
-
-  <div className="w-full bg-gray-200 rounded-full h-3">
-    <div
-      className="bg-[#702dff] h-3 rounded-full transition-all duration-500"
-      style={{ width: `${getProgress()}%` }}
-    ></div>
-  </div>
-</div>
+            
             <div className="flex items-center gap-8 mt-4">
               <div className="flex items-center gap-2"><span className="text-xs uppercase tracking-wide text-gray-500 font-medium">Client</span><span className="text-sm text-gray-900 font-medium">{project.client || "N/A"}</span></div>
               <div className="h-4 w-px bg-gray-300" />
@@ -854,11 +849,15 @@ const renderIdeateTemplateCard = (template) => {
     className={`text-xs px-2 py-1 rounded ${
       completedStages.includes(stage.id)
         ? "bg-green-100 text-green-700"
+        : STAGES.find((s) => !completedStages.includes(s.id))?.id === stage.id
+        ? "bg-yellow-100 text-yellow-700"
         : "bg-gray-100 text-gray-600"
     }`}
   >
     {completedStages.includes(stage.id)
       ? "Completed"
+      : STAGES.find((s) => !completedStages.includes(s.id))?.id === stage.id
+      ? "In Progress"
       : "Not Started"}
   </span>
 </div>
@@ -869,25 +868,7 @@ const renderIdeateTemplateCard = (template) => {
       </div>
     </div>
 
-    {/* ✅ RIGHT SIDE MARKER */}
-    <div className="flex flex-col items-center">
-      <div
-  onClick={(e) => {
-    e.stopPropagation();
 
-    setCompletedStages((prev) =>
-      prev.includes(stage.id)
-        ? prev.filter((s) => s !== stage.id) // unmark
-        : [...prev, stage.id] // mark
-    );
-  }}
-  className={`w-4 h-4 rounded-sm border-2 cursor-pointer transition ${
-    completedStages.includes(stage.id)
-      ? "bg-[#702dff] border-[#702dff]"
-      : "border-gray-300"
-  }`}
-></div>
-    </div>
   </div>
 </div>
                   {isExpanded && (
