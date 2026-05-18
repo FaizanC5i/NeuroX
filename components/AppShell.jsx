@@ -157,6 +157,7 @@ if (data?.success) {
     const result = await updateProject(editingProject.projectId, projectData);
     if (result.success) {
       refetchProjects();
+      window.dispatchEvent(new Event("neurox:projects-updated"));
     } else {
       alert(`Failed to update: ${result.error}`);
     }
@@ -177,6 +178,7 @@ if (data?.success) {
 
       if (response.success) {
         refetchProjects();
+        window.dispatchEvent(new Event("neurox:projects-updated"));
         alert("Project created successfully!");
       }
     } catch (error) {
@@ -247,3 +249,11 @@ if (data?.success) {
     </div>
   );
 }
+
+
+
+
+
+
+
+

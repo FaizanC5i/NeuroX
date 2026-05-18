@@ -100,6 +100,12 @@ export function useProjects(userId, options = {}) {
     fetchProjects();
   }, [userId]);
 
+  useEffect(() => {
+    const handler = () => fetchProjects();
+    window.addEventListener("neurox:projects-updated", handler);
+    return () => window.removeEventListener("neurox:projects-updated", handler);
+  }, [userId]);
+
   return {
     projects,
     isLoading,

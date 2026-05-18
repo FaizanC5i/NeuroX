@@ -162,7 +162,7 @@ export function CreateProjectModal({
               <div className="mb-4">
                 <label className="mb-2 block text-sm font-medium text-slate-700">Description</label>
                 <textarea
-                  placeholder="Description ..."
+                  placeholder="Describe the project in detail including its purpose, features, workflow, and objectives..."
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
                   className="w-full rounded-lg border border-slate-300 px-3 py-2.5 text-sm text-slate-700 shadow-sm outline-none transition placeholder:text-slate-400 focus:border-indigo-400 focus:ring-2 focus:ring-indigo-200"
@@ -186,7 +186,7 @@ export function CreateProjectModal({
                         className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-700 shadow-sm outline-none transition placeholder:text-slate-400 focus:border-indigo-400 focus:ring-2 focus:ring-indigo-200 sm:w-1/3"
                       />
                       <textarea
-                        placeholder="User-Group Description"
+                        placeholder="Describe what this user group does in the project, their goals, responsibilities, needs, and challenges..."
                         value={p.description}
                         onChange={(e) =>
                           updatePersona(index, "description", e.target.value)

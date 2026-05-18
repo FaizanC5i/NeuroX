@@ -8,7 +8,8 @@ GET PROJECT PROGRESS
 */
 export async function GET(req, { params }) {
   try {
-    const projectId = Number(params.id);
+    const { id } = await params;
+    const projectId = Number(id);
 
     const pool = await getPool();
 
@@ -109,7 +110,7 @@ export async function PUT(req, { params }) {
 
     const { stage, progress } = body;
 
-    const projectId = Number(params.id);
+    const projectId = Number((await params).id);
 
     const pool = await getPool();
 
@@ -233,3 +234,4 @@ export async function PUT(req, { params }) {
     );
   }
 }
+
