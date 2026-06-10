@@ -110,4 +110,4 @@ jobs:
           app-name: NeuroX
           slot-name: Production
           package: deploy
-          publish-profile: ${{ secrets.AZUREAPPSERVICE_PUBLISHPROFILE_A2F0B92F4B4947B0B855B18AA203114E }}
+          publish-profile: ${{ secrets.AZUREAPPSERVICE_PUBLISHPROFILE_93681FD5AE694F8088DA429B2A06AE594 }}
